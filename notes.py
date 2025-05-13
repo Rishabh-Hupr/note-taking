@@ -26,30 +26,53 @@ class NotesDatabase:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # Full-text search table
-        # The hyphen in column names is causing the parse error
-        # SQLite column names should not contain hyphens
-        # Changed keyfts to key_fts and valuefts to value_fts
+
         self.conn.execute('''
             CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts 
-            USING FTS5(key_fts, value_fts, content='notes', content_rowid='id')
+            USING FTS5(key, value, content='notes', content_rowid='id', prefix='2 3 4 5 6');
         ''')
         
         # Create triggers to keep FTS index updated
         self.conn.executescript('''
             CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-                INSERT INTO notes_fts(rowid, key_fts, value_fts) VALUES (new.id, new.key_fts, new.value_fts);
+                INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
             END;
             
             CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-                INSERT INTO notes_fts(notes_fts, rowid, key_fts, value_fts) VALUES('delete', old.id, old.key_fts, old.value_fts);
+                INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
             END;
             
             CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-                INSERT INTO notes_fts(notes_fts, rowid, key_fts, value_fts) VALUES('delete', old.id, old.key_fts, old.value_fts);
-                INSERT INTO notes_fts(rowid, key_fts, value_fts) VALUES (new.id, new.key_fts, new.value_fts);
+                INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
+                INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
             END;
         ''')
         
         self.conn.commit()
+    
+    # Uncomment below to rebuilt the notes_fts table
+    # def rebuild_fts_table(self, prefix="2 3 4 5"):
+    #     from contextlib import closing
+    #     with closing(sqlite3.connect(self.db_path)) as self.conn:
+    #         self.conn.execute("DROP TABLE IF EXISTS notes_fts")
+    #         self.conn.execute(f'''
+    #             CREATE VIRTUAL TABLE notes_fts 
+    #             USING FTS5(key, value, content='notes', content_rowid='id', prefix='{prefix}')
+    #         ''')
+    #         self.conn.executescript('''
+    #             CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+    #                 INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
+    #             END;
+
+    #             CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+    #                 INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
+    #             END;
+
+    #             CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+    #                 INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
+    #                 INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
+    #             END;
+    #         ''')
+    #         self.conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+    #         self.conn.commit()
+

@@ -1,11 +1,10 @@
 from notes import NotesDatabase
 import json
-import sys
 # amazonq-ignore-next-line
 import sqlite3
 
 
-key = sys.argv[1]
+
 class FetchNote(NotesDatabase):
     def get_note(self, key):
         result = cursor = None
@@ -24,21 +23,22 @@ class FetchNote(NotesDatabase):
     
     def search_notes(self, query):
         cursor = None
+        results = {}
         from contextlib import closing
         with closing(sqlite3.connect(self.db_path)) as self.conn:
             cursor = self.conn.execute('''
-                SELECT key, value FROM notes 
+                SELECT notes.key, notes.value FROM notes 
                 JOIN notes_fts ON notes.id = notes_fts.rowid
                 WHERE notes_fts MATCH ?
-            ''', (query,))
+            ''', (f'key:{query}*',))
         
-        results = {}
-        for key, value in cursor.fetchall():
-            try:
-                results[key] = json.loads(value)
-            except json.JSONDecodeError:
-                results[key] = value
+            for key, value in cursor.fetchall():
+                try:
+                    results[key] = json.loads(value)
+                except json.JSONDecodeError:
+                    results[key] = value
         return results
 
-notes_obj = FetchNote()
-notes_obj.search_notes(key)
+key_to_search = input("Enter key to search: ")
+fetcher = FetchNote()
+print(fetcher.search_notes(key_to_search))
