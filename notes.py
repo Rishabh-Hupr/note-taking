@@ -2,7 +2,7 @@
 import sqlite3
 
 class NotesDatabase:
-    def __init__(self, db_path="db/notes.db"):
+    def __init__(self, db_path="/Users/hupr/note-taking/db/notes.db"):
         self.db_path = db_path
         # Using contextlib.closing to ensure proper resource management
         # This helps in automatically closing the connection when it's no longer needed
@@ -22,8 +22,7 @@ class NotesDatabase:
                 id INTEGER PRIMARY KEY,
                 key TEXT UNIQUE NOT NULL,
                 value TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 

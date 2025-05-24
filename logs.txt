@@ -1,0 +1,549 @@
+Added key: maws
+Added key: hello
+Received input: heyo//\howudoing
+Stripped input
+Created AddNote instance and calling add_note()
+Calling insert on database
+Added key: heyo
+Fetched key: hey
+Fetched key: he
+Input passed 
+Input passed 
+Received input: 
+[][]
+[]
+Received input: []
+['//\\']
+Received input: ['//\\']
+['//\\']
+Received input: ['//\\']
+['//\\']
+Received input: ['//\\']
+['//\\']
+Received input: ['//\\']
+['whatisthis//\\hello']
+Received input: ['whatisthis//\\hello']
+aws//\aws.amazon.com
+Received input: aws//\aws.amazon.com
+Stripped input: aws aws.amazon.com
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+Added key: aws
+wiki//\\w.amazon.com
+Received input: wiki//\\w.amazon.com
+Stripped input: wiki \w.amazon.com
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+Added key: wiki
+sage sage.amazon.dev
+Received input: sage sage.amazon.dev
+Stripped input: sage sage.amazon.dev
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+Added key: sage
+Fetched key: wik
+Received input: hello world
+Stripped input: hello world
+
+Created AddNote instance and calling add_note()
+Received input: hello world
+Stripped input: hello world
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+hello
+Received input: hellohello iudontknow
+Stripped input: hellohello iudontknow
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+hellohello
+fetcher.py: No key provided
+fetcher.py: No key provided
+fetcher.py: No key provided
+fetcher.py: No key provided
+<class 'list'>
+fetcher.py: No key provided
+[(1, 'maws', 'movetoaws', '2025-05-13 10:13:10', '2025-05-13 10:13:10'), (3, 'heyo', 'howudoing', '2025-05-13 10:32:44', '2025-05-13 10:32:44'), (4, 'aws', 'aws.amazon.com', '2025-05-24 15:56:14', '2025-05-24 15:56:14'), (5, 'wiki', '\\w.amazon.com', '2025-05-24 15:57:18', '2025-05-24 15:57:18'), (6, 'sage', 'sage.amazon.dev', '2025-05-24 15:58:20', '2025-05-24 15:58:20'), (7, 'hello', 'world', '2025-05-24 16:21:00', '2025-05-24 16:21:00'), (8, 'hellohello', 'iudontknow', '2025-05-24 16:21:26', '2025-05-24 16:21:26')]
+fetcher.py: No key provided
+[('maws', 'movetoaws', '2025-05-13 10:13:10'), ('heyo', 'howudoing', '2025-05-13 10:32:44'), ('aws', 'aws.amazon.com', '2025-05-24 15:56:14'), ('wiki', '\\w.amazon.com', '2025-05-24 15:57:18'), ('sage', 'sage.amazon.dev', '2025-05-24 15:58:20'), ('hello', 'world', '2025-05-24 16:21:00'), ('hellohello', 'iudontknow', '2025-05-24 16:21:26')]
+fetcher.py: No key provided
+[('maws', 'movetoaws', '2025-05-13 10:13:10'), ('heyo', 'howudoing', '2025-05-13 10:32:44'), ('aws', 'aws.amazon.com', '2025-05-24 15:56:14'), ('wiki', '\\w.amazon.com', '2025-05-24 15:57:18'), ('sage', 'sage.amazon.dev', '2025-05-24 15:58:20'), ('hello', 'world', '2025-05-24 16:21:00'), ('hellohello', 'iudontknow', '2025-05-24 16:21:26')]
+fetcher.py: No key provided
+fetcher.py: JSONDecodeError show_db(): variable is value
+fetcher.py: No key provided
+fetcher.py: JSONDecodeError show_db(): variable is value
+fetcher.py: No key provided
+[('maws', 'movetoaws', '2025-05-13 10:13:10'), ('heyo', 'howudoing', '2025-05-13 10:32:44'), ('aws', 'aws.amazon.com', '2025-05-24 15:56:14'), ('wiki', '\\w.amazon.com', '2025-05-24 15:57:18'), ('sage', 'sage.amazon.dev', '2025-05-24 15:58:20'), ('hello', 'world', '2025-05-24 16:21:00'), ('hellohello', 'iudontknow', '2025-05-24 16:21:26')]
+fetcher.py: No key provided
+[('maws', 'movetoaws', '2025-05-13 10:13:10'), ('heyo', 'howudoing', '2025-05-13 10:32:44'), ('aws', 'aws.amazon.com', '2025-05-24 15:56:14'), ('wiki', '\\w.amazon.com', '2025-05-24 15:57:18'), ('sage', 'sage.amazon.dev', '2025-05-24 15:58:20'), ('hello', 'world', '2025-05-24 16:21:00'), ('hellohello', 'iudontknow', '2025-05-24 16:21:26')]
+fetcher.py: No key provided
+fetcher.py: JSONDecodeError show_db(): variable is value
+fetcher.py: No key provided
+fetcher.py: No key provided
+[('wiki', '\\w.amazon.com')]
+fetcher.py: No key provided
+[('aws', 'aws.amazon.com')]
+fetcher.py: No key provided
+fetcher.py: JSONDecodeError show_db(): variable is value
+fetcher.py: No key provided
+fetcher.py: No key provided
+fetcher.py: No key provided
+mawsmovetoaws2025-05-13 10:13:10
+fetcher.py: No key provided
+maws movetoaws 2025-05-13 10:13:10
+fetcher.py: No key provided
+maws movetoaws 2025-05-13 10:13:10
+heyo howudoing 2025-05-13 10:32:44
+aws aws.amazon.com 2025-05-24 15:56:14
+wiki \w.amazon.com 2025-05-24 15:57:18
+sage sage.amazon.dev 2025-05-24 15:58:20
+hello world 2025-05-24 16:21:00
+hellohello iudontknow 2025-05-24 16:21:26
+Received key: hello
+Fetched key: hello
+Received key: hello
+Fetched key: hello
+-------------
+Received key: hello
+Fetched key: hello
+-------------
+Received input: trying
+Received input: trying something
+Stripped input: trying something
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+trying
+-------------
+Received input: test lastone
+Stripped input: test lastone
+
+Created AddNote instance and calling add_note()
+Calling insert on database
+Added key: test
+-------------
+Received input: test seriouslylastone
+Stripped input: test, seriouslylastone
+Created AddNote instance and calling add_note()
+Calling insert on database
+Added key: test
+-------------
+fetcher.py: No key provided
+fetcher.py: No key provided
+maws movetoaws 2025-05-13 10:13:10
+heyo howudoing 2025-05-13 10:32:44
+aws aws.amazon.com 2025-05-24 15:56:14
+wiki \w.amazon.com 2025-05-24 15:57:18
+sage sage.amazon.dev 2025-05-24 15:58:20
+hello world 2025-05-24 16:21:00
+hellohello iudontknow 2025-05-24 16:21:26
+trying something 2025-05-24 16:53:49
+test seriouslylastone 2025-05-24 16:54:59
+-------------
+fetcher.py: No key provided
+maws movetoaws 2025-05-13 10:13:10
+heyo howudoing 2025-05-13 10:32:44
+aws aws.amazon.com 2025-05-24 15:56:14
+wiki \w.amazon.com 2025-05-24 15:57:18
+sage sage.amazon.dev 2025-05-24 15:58:20
+hello world 2025-05-24 16:21:00
+hellohello iudontknow 2025-05-24 16:21:26
+trying something 2025-05-24 16:53:49
+test seriouslylastone 2025-05-24 16:54:59
+-------------
+Received key: try
+Fetched key: try
+-------------
+Received key: tes
+Fetched key: tes
+-------------
+Received input: test lastone
+Stripped input: test, lastone
+Created AddNote instance and calling add_note()
+Calling insert on database
+Received input: test lastone
+Stripped input: test, lastone
+Created AddNote instance and calling add_note()
+Calling insert on database
+fetcher.py: No key provided
+maws movetoaws 2025-05-13 10:13:10
+heyo howudoing 2025-05-13 10:32:44
+aws aws.amazon.com 2025-05-24 15:56:14
+wiki \w.amazon.com 2025-05-24 15:57:18
+sage sage.amazon.dev 2025-05-24 15:58:20
+hello world 2025-05-24 16:21:00
+hellohello iudontknow 2025-05-24 16:21:26
+trying something 2025-05-24 16:53:49
+test seriouslylastone 2025-05-24 16:54:59
+-------------
+fetcher.py: No key provided
+maws movetoaws 2025-05-13 10:13:10
+heyo howudoing 2025-05-13 10:32:44
+aws aws.amazon.com 2025-05-24 15:56:14
+wiki \w.amazon.com 2025-05-24 15:57:18
+sage sage.amazon.dev 2025-05-24 15:58:20
+hello world 2025-05-24 16:21:00
+hellohello iudontknow 2025-05-24 16:21:26
+trying something 2025-05-24 16:53:49
+test seriouslylastone 2025-05-24 16:54:59
+-------------
+2025-05-24 18:05:42.403549 fetcher.py: No key provided
+2025-05-24 18:05:42.406266 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 18:05:42.406351 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 18:05:42.406419 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 18:05:42.406485 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 18:05:42.406548 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 18:05:42.406616 hello world 2025-05-24 16:21:00
+2025-05-24 18:05:42.406680 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 18:05:42.406747 trying something 2025-05-24 16:53:49
+2025-05-24 18:05:42.406813 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 18:05:42.406927 -------------
+2025-05-24 18:06:27.697236 fetcher.py: No key provided
+2025-05-24 18:06:27.700058 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 18:06:27.700142 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 18:06:27.700223 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 18:06:27.700305 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 18:06:27.700378 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 18:06:27.700470 hello world 2025-05-24 16:21:00
+2025-05-24 18:06:27.700538 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 18:06:27.700605 trying something 2025-05-24 16:53:49
+2025-05-24 18:06:27.700670 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 18:06:27.700798 -------------
+2025-05-24 18:23:12.572655 fetcher.py: No key provided
+2025-05-24 18:23:12.575843 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 18:23:12.575915 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 18:23:12.575982 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 18:23:12.576045 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 18:23:12.576113 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 18:23:12.576189 hello world 2025-05-24 16:21:00
+2025-05-24 18:23:12.576260 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 18:23:12.576328 trying something 2025-05-24 16:53:49
+2025-05-24 18:23:12.576394 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 18:23:12.576540 -------------
+2025-05-24 21:55:04.420402 Received key: aws
+2025-05-24 21:55:04.424052 Fetched key: aws
+2025-05-24 21:55:04.424139 -------------
+2025-05-24 22:01:55.008046 Received key: aws
+2025-05-24 22:01:55.011264 Fetched key: aws
+2025-05-24 22:01:55.011342 -------------
+2025-05-24 22:03:27.919266 Received key: aws
+2025-05-24 22:03:27.921789 Fetched key: aws
+2025-05-24 22:03:27.921867 -------------
+2025-05-24 22:03:52.711605 fetcher.py: No key provided
+2025-05-24 22:03:52.714238 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 22:03:52.714345 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 22:03:52.714440 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 22:03:52.714536 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 22:03:52.714627 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 22:03:52.714716 hello world 2025-05-24 16:21:00
+2025-05-24 22:03:52.714793 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 22:03:52.714869 trying something 2025-05-24 16:53:49
+2025-05-24 22:03:52.714941 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 22:03:52.715066 -------------
+2025-05-24 22:03:58.887354 fetcher.py: No key provided
+2025-05-24 22:03:58.889941 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 22:03:58.890039 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 22:03:58.890135 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 22:03:58.890211 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 22:03:58.890282 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 22:03:58.890357 hello world 2025-05-24 16:21:00
+2025-05-24 22:03:58.890431 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 22:03:58.890503 trying something 2025-05-24 16:53:49
+2025-05-24 22:03:58.890570 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 22:03:58.890696 -------------
+2025-05-24 22:22:29.222420 Received input: trying osa in the fetcher quick action
+2025-05-24 22:22:29.222532 Stripped input: trying, osa
+2025-05-24 22:22:29.225147 Created AddNote instance and calling add_note()
+2025-05-24 22:22:29.225316 Calling insert on database
+2025-05-24 22:22:29.229211 Added key: trying
+2025-05-24 22:22:29.229449 -------------
+2025-05-24 22:25:50.882939 Received input: improving noter////modified split delimiter from space to four forward slashes
+2025-05-24 22:25:50.883080 Stripped input: improving noter, modified split delimiter from space to four forward slashes
+2025-05-24 22:25:50.885442 Created AddNote instance and calling add_note()
+2025-05-24 22:25:50.885621 Calling insert on database
+2025-05-24 22:25:50.888366 Added key: improving noter
+2025-05-24 22:25:50.888943 -------------
+2025-05-24 22:26:43.110455 Received key: noter
+2025-05-24 22:26:43.113422 Fetched key: noter
+2025-05-24 22:26:43.113506 -------------
+2025-05-24 22:27:15.185015 Received key: improve
+2025-05-24 22:28:05.210888 Received key: noter
+2025-05-24 22:28:05.213713 Fetched key: noter
+2025-05-24 22:28:05.213805 -------------
+2025-05-24 22:30:37.696569 fetcher.py: No key provided
+2025-05-24 22:30:37.699406 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 22:30:37.699515 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 22:30:37.699598 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 22:30:37.699698 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 22:30:37.699787 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 22:30:37.699871 hello world 2025-05-24 16:21:00
+2025-05-24 22:30:37.699955 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 22:30:37.700040 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 22:30:37.700125 trying osa 2025-05-24 21:22:29
+2025-05-24 22:30:37.700218 improving noter modified split delimiter from space to four forward slashes 2025-05-24 21:25:50
+2025-05-24 22:30:37.700411 -------------
+2025-05-24 22:31:41.113570 Received key: hello
+2025-05-24 22:31:41.116070 Fetched key: hello
+2025-05-24 22:31:41.116148 -------------
+2025-05-24 22:41:07.900583 Received key: wiki
+2025-05-24 22:41:07.903752 Fetched key: wiki
+2025-05-24 22:41:07.903842 -------------
+2025-05-24 22:43:45.280789 Received key: hello
+2025-05-24 22:43:45.283991 Fetched key: hello
+2025-05-24 22:43:45.284074 -------------
+2025-05-24 23:03:16.000954 Received key: wiki
+2025-05-24 23:03:16.005148 Fetched key: wiki
+2025-05-24 23:03:16.005242 -------------
+2025-05-24 23:12:28.836113 Received key: hello
+2025-05-24 23:12:28.839918 Fetched key: hello
+2025-05-24 23:12:28.840002 -------------
+2025-05-24 23:13:21.431196 Received key: hello
+2025-05-24 23:13:21.434152 Fetched key: hello
+2025-05-24 23:13:21.434235 -------------
+2025-05-24 23:15:32.641856 Received key: noter
+2025-05-24 23:15:32.644899 Fetched key: noter
+2025-05-24 23:15:32.644973 -------------
+2025-05-24 23:18:25.826665 Received key: hello
+2025-05-24 23:18:25.829768 Fetched key: hello
+2025-05-24 23:18:25.829846 -------------
+2025-05-24 23:19:02.471918 Received key: hello
+2025-05-24 23:19:02.474962 Fetched key: hello
+2025-05-24 23:19:02.475052 -------------
+2025-05-24 23:39:04.450450 Received key: hello
+2025-05-24 23:39:04.454205 Fetched key: hello
+2025-05-24 23:39:04.454283 -------------
+2025-05-24 23:39:24.237083 Received key: idontknow
+2025-05-24 23:39:33.147034 Received key: amazon
+2025-05-24 23:39:37.343863 Received key: aws
+2025-05-24 23:39:37.346625 Fetched key: aws
+2025-05-24 23:39:37.346717 -------------
+2025-05-24 23:48:45.957706 Received key: hello
+2025-05-24 23:48:45.960932 Fetched key: hello
+2025-05-24 23:48:45.961020 -------------
+2025-05-24 23:49:30.436748 Received input: tried dmenu and xquartz////didn't work, I wanted to get it in the spotlight search format
+2025-05-24 23:49:30.436891 Stripped input: tried dmenu and xquartz, didn't work, I wanted to get it in the spotlight search format
+2025-05-24 23:49:30.439456 Created AddNote instance and calling add_note()
+2025-05-24 23:49:30.439623 Calling insert on database
+2025-05-24 23:49:30.443205 Added key: tried dmenu and xquartz
+2025-05-24 23:49:30.443430 -------------
+2025-05-24 23:49:39.810882 Received key: dmenu
+2025-05-24 23:49:39.813802 Fetched key: dmenu
+2025-05-24 23:49:39.813884 -------------
+2025-05-24 23:50:18.935961 Received key: dmenu
+2025-05-24 23:50:18.938968 Fetched key: dmenu
+2025-05-24 23:50:18.939052 -------------
+2025-05-24 23:52:01.163454 Received key: hello
+2025-05-24 23:52:01.166532 Fetched key: hello
+2025-05-24 23:52:01.166608 -------------
+2025-05-24 23:52:29.190635 Received key: xquartz
+2025-05-24 23:52:29.193495 Fetched key: xquartz
+2025-05-24 23:52:29.193583 -------------
+2025-05-24 23:52:53.966628 fetcher.py: No key provided
+2025-05-24 23:52:53.969230 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 23:52:53.969334 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 23:52:53.969430 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 23:52:53.969519 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 23:52:53.969606 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 23:52:53.969727 hello world 2025-05-24 16:21:00
+2025-05-24 23:52:53.969817 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 23:52:53.969906 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 23:52:53.969994 trying osa 2025-05-24 21:22:29
+2025-05-24 23:52:53.970095 improving noter modified split delimiter from space to four forward slashes 2025-05-24 21:25:50
+2025-05-24 23:52:53.970255 tried dmenu and xquartz didn't work, I wanted to get it in the spotlight search format 2025-05-24 22:49:30
+2025-05-24 23:52:53.970427 -------------
+2025-05-24 23:53:10.624697 fetcher.py: No key provided
+2025-05-24 23:53:10.628018 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 23:53:10.628137 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 23:53:10.628259 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 23:53:10.628358 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 23:53:10.628471 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 23:53:10.628611 hello world 2025-05-24 16:21:00
+2025-05-24 23:53:10.628699 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 23:53:10.628820 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 23:53:10.628907 trying osa 2025-05-24 21:22:29
+2025-05-24 23:53:10.628989 improving noter modified split delimiter from space to four forward slashes 2025-05-24 21:25:50
+2025-05-24 23:53:10.629082 tried dmenu and xquartz didn't work, I wanted to get it in the spotlight search format 2025-05-24 22:49:30
+2025-05-24 23:53:10.629292 -------------
+2025-05-24 23:53:53.621868 Received input: odd check////whqt the fuck it is
+2025-05-24 23:53:53.622029 Stripped input: odd check, whqt the fuck it is
+2025-05-24 23:53:53.624687 Created AddNote instance and calling add_note()
+2025-05-24 23:53:53.624869 Calling insert on database
+2025-05-24 23:53:53.630636 Added key: odd check
+2025-05-24 23:53:53.630783 -------------
+2025-05-24 23:54:00.200606 Received key: check
+2025-05-24 23:54:00.203200 Fetched key: check
+2025-05-24 23:54:00.203274 -------------
+2025-05-24 23:54:54.467129 Received input: a comma check////chekcing this fucking comma, ohh noo
+2025-05-24 23:54:54.467301 Stripped input: a comma check, chekcing this fucking comma, ohh noo
+2025-05-24 23:54:54.469830 Created AddNote instance and calling add_note()
+2025-05-24 23:54:54.470005 Calling insert on database
+2025-05-24 23:54:54.473169 Added key: a comma check
+2025-05-24 23:54:54.473258 -------------
+2025-05-24 23:55:02.930856 Received key: comma
+2025-05-24 23:55:02.934293 Fetched key: comma
+2025-05-24 23:55:02.934390 -------------
+2025-05-24 23:55:12.590509 fetcher.py: No key provided
+2025-05-24 23:55:12.593689 maws movetoaws 2025-05-13 10:13:10
+2025-05-24 23:55:12.593787 heyo howudoing 2025-05-13 10:32:44
+2025-05-24 23:55:12.593867 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-24 23:55:12.593952 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-24 23:55:12.594038 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-24 23:55:12.594123 hello world 2025-05-24 16:21:00
+2025-05-24 23:55:12.594205 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-24 23:55:12.594280 test seriouslylastone 2025-05-24 16:54:59
+2025-05-24 23:55:12.594359 trying osa 2025-05-24 21:22:29
+2025-05-24 23:55:12.594481 improving noter modified split delimiter from space to four forward slashes 2025-05-24 21:25:50
+2025-05-24 23:55:12.594598 tried dmenu and xquartz didn't work, I wanted to get it in the spotlight search format 2025-05-24 22:49:30
+2025-05-24 23:55:12.594703 odd check whqt the fuck it is 2025-05-24 22:53:53
+2025-05-24 23:55:12.594781 a comma check chekcing this fucking comma, ohh noo 2025-05-24 22:54:54
+2025-05-24 23:55:12.594975 -------------
+2025-05-24 23:55:35.759180 Received key: trie
+2025-05-24 23:55:35.762363 Fetched key: trie
+2025-05-24 23:55:35.762451 -------------
+2025-05-24 23:57:33.625842 Received key: demnu
+2025-05-24 23:57:44.337319 Received key: dmenu
+2025-05-24 23:57:44.340631 Fetched key: dmenu
+2025-05-24 23:57:44.340724 -------------
+2025-05-24 23:57:55.306827 Received key: check
+2025-05-24 23:57:55.310327 Fetched key: check
+2025-05-24 23:57:55.310424 -------------
+2025-05-25 00:12:21.853856 Received key: dmenu
+2025-05-25 00:12:21.857637 Fetched key: dmenu
+2025-05-25 00:12:21.857722 -------------
+2025-05-25 00:12:31.981403 Received key: check
+2025-05-25 00:12:31.984630 Fetched key: check
+2025-05-25 00:12:31.984724 -------------
+2025-05-25 00:12:36.451732 Received key: dmenu
+2025-05-25 00:12:36.455430 Fetched key: dmenu
+2025-05-25 00:12:36.455542 -------------
+2025-05-25 00:12:58.995891 Received key: dmenu
+2025-05-25 00:12:58.998935 Fetched key: dmenu
+2025-05-25 00:12:58.999030 -------------
+2025-05-25 00:20:14.479991 Received key: dmenu
+2025-05-25 00:20:14.483392 Fetched key: dmenu
+2025-05-25 00:20:14.483489 -------------
+2025-05-25 00:20:29.585290 Received key: dmenu
+2025-05-25 00:20:29.588397 Fetched key: dmenu
+2025-05-25 00:20:29.588469 -------------
+2025-05-25 00:20:55.749641 Received input: new try with single quote////trying single quote' this one
+2025-05-25 00:20:55.749739 Stripped input: new try with single quote, trying single quote\' this one
+2025-05-25 00:20:55.752532 Created AddNote instance and calling add_note()
+2025-05-25 00:20:55.752711 Calling insert on database
+2025-05-25 00:20:55.763731 Added key: new try with single quote
+2025-05-25 00:20:55.763853 -------------
+2025-05-25 00:21:11.934462 Received key: quote
+2025-05-25 00:21:11.937032 Fetched key: quote
+2025-05-25 00:21:11.937120 -------------
+2025-05-25 00:21:21.083676 Received key: quote
+2025-05-25 00:21:21.087184 Fetched key: quote
+2025-05-25 00:21:21.087295 -------------
+2025-05-25 00:22:41.545024 Received key: quote
+2025-05-25 00:22:41.548755 Fetched key: quote
+2025-05-25 00:22:41.548871 -------------
+2025-05-25 00:23:09.722973 Received key: quote
+2025-05-25 00:23:09.726212 Fetched key: quote
+2025-05-25 00:23:09.726305 -------------
+2025-05-25 00:23:42.276521 Received key: quote
+2025-05-25 00:23:42.280277 Fetched key: quote
+2025-05-25 00:23:42.280374 -------------
+2025-05-25 00:23:55.893872 Received key: quote
+2025-05-25 00:23:55.896633 Fetched key: quote
+2025-05-25 00:23:55.896723 -------------
+2025-05-25 00:24:10.343937 Received key: quote
+2025-05-25 00:24:10.346810 Fetched key: quote
+2025-05-25 00:24:10.346897 -------------
+2025-05-25 00:24:37.954069 Received key: dmenu
+2025-05-25 00:24:37.957006 Fetched key: dmenu
+2025-05-25 00:24:37.957084 -------------
+2025-05-25 00:29:10.377480 Received key: dmenu
+2025-05-25 00:29:10.380768 Fetched key: dmenu
+2025-05-25 00:29:10.380853 -------------
+2025-05-25 00:29:47.559293 Received key: quote
+2025-05-25 00:29:47.562695 Fetched key: quote
+2025-05-25 00:29:47.562788 -------------
+2025-05-25 00:30:07.450787 Received key: quote
+2025-05-25 00:30:07.453518 Fetched key: quote
+2025-05-25 00:30:07.453608 -------------
+2025-05-25 00:30:43.132605 Received key: quote
+2025-05-25 00:30:43.135724 Fetched key: quote
+2025-05-25 00:30:43.135803 -------------
+2025-05-25 00:31:58.199430 Received key: quote
+2025-05-25 00:31:58.202304 Fetched key: quote
+2025-05-25 00:31:58.202388 -------------
+2025-05-25 00:32:49.587610 Received key: quote
+2025-05-25 00:32:49.590696 Fetched key: quote
+2025-05-25 00:32:49.590772 -------------
+2025-05-25 00:33:03.122310 Received key: quote
+2025-05-25 00:33:03.125511 Fetched key: quote
+2025-05-25 00:33:03.125613 -------------
+2025-05-25 00:33:16.841069 Received key: quote
+2025-05-25 00:33:16.843755 Fetched key: quote
+2025-05-25 00:33:16.843834 -------------
+2025-05-25 00:33:41.709197 Received key: quote
+2025-05-25 00:33:41.712315 Fetched key: quote
+2025-05-25 00:33:41.712411 -------------
+2025-05-25 00:34:11.960943 Received key: quote
+2025-05-25 00:34:11.963892 Fetched key: quote
+2025-05-25 00:34:11.963981 -------------
+2025-05-25 00:34:26.392620 Received key: quote
+2025-05-25 00:34:26.395401 Fetched key: quote
+2025-05-25 00:34:26.395475 -------------
+2025-05-25 00:34:41.649572 Received key: quote
+2025-05-25 00:34:41.652532 Fetched key: quote
+2025-05-25 00:34:41.652613 -------------
+2025-05-25 00:34:58.056368 Received key: quote
+2025-05-25 00:34:58.059150 Fetched key: quote
+2025-05-25 00:34:58.059235 -------------
+2025-05-25 00:35:42.316475 Received key: quote
+2025-05-25 00:35:42.319827 Fetched key: quote
+2025-05-25 00:35:42.319918 -------------
+2025-05-25 00:35:49.519813 Received key: dmenu
+2025-05-25 00:35:49.522747 Fetched key: dmenu
+2025-05-25 00:35:49.522828 -------------
+2025-05-25 00:36:49.797107 Received key: dmenu
+2025-05-25 00:36:49.800134 Fetched key: dmenu
+2025-05-25 00:36:49.800209 -------------
+2025-05-25 00:37:11.787702 Received key: dmenu
+2025-05-25 00:37:11.790646 Fetched key: dmenu
+2025-05-25 00:37:11.790739 -------------
+2025-05-25 00:37:32.256180 Received key: dmenu
+2025-05-25 00:37:32.258987 Fetched key: dmenu
+2025-05-25 00:37:32.259069 -------------
+2025-05-25 00:37:47.682291 Received key: dmenu
+2025-05-25 00:37:47.685223 Fetched key: dmenu
+2025-05-25 00:37:47.685304 -------------
+2025-05-25 00:38:59.920662 Received key: dmenu
+2025-05-25 00:38:59.923418 Fetched key: dmenu
+2025-05-25 00:38:59.923497 -------------
+2025-05-25 00:39:09.615142 Received key: dmenu
+2025-05-25 00:39:09.618098 Fetched key: dmenu
+2025-05-25 00:39:09.618176 -------------
+2025-05-25 00:39:19.806337 Received key: dmenu
+2025-05-25 00:39:19.809112 Fetched key: dmenu
+2025-05-25 00:39:19.809209 -------------
+2025-05-25 00:39:30.466875 Received key: quote
+2025-05-25 00:39:30.469738 Fetched key: quote
+2025-05-25 00:39:30.469817 -------------
+2025-05-25 00:39:41.669065 Received key: comma
+2025-05-25 00:39:41.671987 Fetched key: comma
+2025-05-25 00:39:41.672075 -------------
+2025-05-25 00:40:40.317528 fetcher.py: No key provided
+2025-05-25 00:40:40.320353 maws movetoaws 2025-05-13 10:13:10
+2025-05-25 00:40:40.320445 heyo howudoing 2025-05-13 10:32:44
+2025-05-25 00:40:40.320511 aws aws.amazon.com 2025-05-24 15:56:14
+2025-05-25 00:40:40.320582 wiki \w.amazon.com 2025-05-24 15:57:18
+2025-05-25 00:40:40.320667 sage sage.amazon.dev 2025-05-24 15:58:20
+2025-05-25 00:40:40.320738 hello world 2025-05-24 16:21:00
+2025-05-25 00:40:40.320808 hellohello iudontknow 2025-05-24 16:21:26
+2025-05-25 00:40:40.320873 test seriouslylastone 2025-05-24 16:54:59
+2025-05-25 00:40:40.320937 trying osa 2025-05-24 21:22:29
+2025-05-25 00:40:40.321004 improving noter modified split delimiter from space to four forward slashes 2025-05-24 21:25:50
+2025-05-25 00:40:40.321071 tried dmenu and xquartz didn't work, I wanted to get it in the spotlight search format 2025-05-24 22:49:30
+2025-05-25 00:40:40.321135 odd check whqt the fuck it is 2025-05-24 22:53:53
+2025-05-25 00:40:40.321198 a comma check chekcing this fucking comma, ohh noo 2025-05-24 22:54:54
+2025-05-25 00:40:40.321265 new try with single quote trying single quote\' this one 2025-05-24 23:20:55
+2025-05-25 00:40:40.321421 -------------
