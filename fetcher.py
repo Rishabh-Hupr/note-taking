@@ -73,7 +73,7 @@ try:
         print(rs)
         log = "Fetched key: " + key
         log_it(log)
-        log_it("-------------")
+    log_it("-------------")
 except:
     log_it("fetcher.py: No key provided")
     fetcher = FetchNote()

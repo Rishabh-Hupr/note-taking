@@ -32,4 +32,4 @@ if key and value:
     adder_notes.add_note(key, value)
     log = "Added key: " + key
     log_it(log)
-    log_it("-------------")
+log_it("-------------")
