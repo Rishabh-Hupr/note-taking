@@ -4,5 +4,5 @@
 
 ## TODO
 1. For God's sake learn GO now
-2. Add a way to pass configs to the application
+2. ~~Add a way to pass configs to the application~~
 3. Make the UI more user friendly
