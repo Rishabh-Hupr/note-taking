@@ -47,17 +47,22 @@ brew install sqlite3
 ```
 
 ### Quick Start
-1. Add a new note:
+1. Create a config.py file with an absolute path that you have access to with below syntax
+```
+DB_PATH="absolute_path/db"
+LOG_PATH="absolute_path"
+```
+2. Add a new note:
 ```bash
 python adder_input.py "key////value"
 ```
 
-2. Search for notes:
+3. Search for notes:
 ```bash
 python fetcher.py "search_term"
 ```
 
-3. Show all notes:
+4. Show all notes:
 ```bash
 python fetcher.py
 ```

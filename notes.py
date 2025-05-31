@@ -1,9 +1,13 @@
 # amazonq-ignore-next-line
 import sqlite3
+import os
+import config
 
 class NotesDatabase:
-    def __init__(self, db_path="/Users/hupr/note-taking/db/notes.db"):
-        self.db_path = db_path
+    def __init__(self, db_path=config.DB_PATH):
+        if not os.path.exists(db_path):
+            os.makedirs(db_path)
+        self.db_path = db_path+"/notes.db"
         # Using contextlib.closing to ensure proper resource management
         # This helps in automatically closing the connection when it's no longer needed
         from contextlib import closing

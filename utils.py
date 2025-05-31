@@ -1,6 +1,14 @@
+import config
+import os
+
+if not os.path.exists(config.LOG_PATH):
+    os.makedirs(config.LOG_PATH)
+
+log_store = config.LOG_PATH + "/app.log"
+
 def log_it(var):
     # write input var into app.log
-    with open("./note-taking/app.log", "a+") as log_file:
+    with open(log_store, "a+") as log_file:
     # prepend current timestamp in UTC to the text being logged
         from datetime import datetime, timezone
         var = str(datetime.now(timezone.utc)) + " " + var

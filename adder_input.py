@@ -1,7 +1,6 @@
 import sys
 from noter import AddNote
-from utils import log_it, escape_string
-
+from utils import log_it
 
 
 input = sys.argv[1:]
