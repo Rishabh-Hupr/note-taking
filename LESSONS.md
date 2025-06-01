@@ -39,3 +39,44 @@
       | Project-specific `go.sum` | `<project>/go.sum` | Verifies versions and integrity  |
 
 3. Structs and classes counterparts of python in go
+    * Something like below:
+    ```
+        type User struct {
+            name string
+            age int
+        }
+    ```
+    is basically a new data type that has the above defined structure
+    And then you can have functions that define a struct as a receiver something similar to self in python that can be used to call the parameters of the object, in Go it works something like below:
+    ```
+        func (u User) funation_name() string {
+            println(u.name, u.age)
+        }
+    ```
+
+
+    You can also have interfaces in go which basically lets you have a code something like this:
+    ```
+        type Spearker interface {
+            Speak() string
+        }
+
+        type Dog struct {}
+        func (Dog) Speak() string {
+            return "Woof!! Woof!!"
+        }
+
+        type Cat struct {}
+        func (Cat) Speak() string {
+            return "Meow!! Meooowww!!"
+        }
+
+        func printSpeaker(s Speaker) string {
+            print(s.Speak())
+        }
+
+        func main() {
+            printSpeaker(Dog{})
+            printSpeaker(Cat{})
+        }
+    ```
