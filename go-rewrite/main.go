@@ -2,7 +2,10 @@ package main
 
 import (
 	"github.com/ncruces/zenity"
+	// "main/setup_database"
 )
+
+const DBPath = "/Users/machupr/note-taking/go-rewrite/db"
 
 func errorCheck(err error) bool {
 	if err != nil {
