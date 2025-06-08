@@ -2,3 +2,4 @@ noting/*
 db/*
 *.log
 config.py
+go-rewrite/db/*
