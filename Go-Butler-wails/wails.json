@@ -1,0 +1,15 @@
+{
+  "name": "Go-Butler-wails",
+  "outputfilename": "Go-Butler-wails",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Rishabh-Hupr",
+    "email": "dewangpant@gmail.com"
+  },
+  "build": {
+    "tags": "sqlite_fts5"
+  }
+}

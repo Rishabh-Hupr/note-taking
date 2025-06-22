@@ -1,4 +1,4 @@
-module Go-Butler
+module GoButler
 
 go 1.24.3
 

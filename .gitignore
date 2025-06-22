@@ -3,3 +3,5 @@ db/*
 *.log
 config.py
 go-rewrite/db/*
+Go-butler-wails/frontend/node_modules/*
+Go-butler-wails/build/*

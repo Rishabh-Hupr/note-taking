@@ -1,8 +1,8 @@
-package main
+package GoButler
 
 import (
-	"Go-Butler/dao"
-	"Go-Butler/utils"
+	"GoButler/dao"
+	"GoButler/utils"
 	"database/sql"
 	"fmt"
 
@@ -66,7 +66,7 @@ func note(db *sql.DB) {
 
 }
 
-func main() {
+func RunApp() {
 	db, err := NewNotesDatabase(DBPath)
 	if utils.Error_happened(err) {
 		return
