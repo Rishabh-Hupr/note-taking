@@ -2,7 +2,10 @@ module Go-Butler-wails
 
 go 1.24.3
 
-require github.com/wailsapp/wails/v2 v2.10.1
+require (
+	github.com/wailsapp/wails/v2 v2.10.1
+	golang.design/x/hotkey v0.4.1
+)
 
 require (
 	github.com/akavel/rsrc v0.10.2 // indirect

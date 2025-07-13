@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@wails/runtime": "^1.3.20"
+  }
+}

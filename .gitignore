@@ -3,5 +3,10 @@ db/*
 *.log
 config.py
 go-rewrite/db/*
-Go-butler-wails/frontend/node_modules/*
-Go-butler-wails/build/*
+Go-Butler-wails/frontend/node_modules/*
+Go-Butler-wails/build/*
+Go-Butler-wails/frontend/dist/*
+*package-lock.json*
+*/node_modules/*
+*/dist/*
+*/build/*

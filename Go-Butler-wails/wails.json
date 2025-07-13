@@ -8,8 +8,5 @@
   "author": {
     "name": "Rishabh-Hupr",
     "email": "dewangpant@gmail.com"
-  },
-  "build": {
-    "tags": "sqlite_fts5"
   }
 }

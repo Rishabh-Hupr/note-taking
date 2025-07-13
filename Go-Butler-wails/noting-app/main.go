@@ -72,7 +72,7 @@ func RunApp() {
 		return
 	}
 
-	// fetch(db.db)
+	// fetch(db.Db)
 
-	note(db.db)
+	note(db.Db)
 }

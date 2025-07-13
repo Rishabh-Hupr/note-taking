@@ -12,7 +12,7 @@ import (
 )
 
 type NotesDatabase struct {
-	db *sql.DB
+	Db *sql.DB
 }
 
 func NewNotesDatabase(dbPath string) (*NotesDatabase, error) {
@@ -47,7 +47,7 @@ func NewNotesDatabase(dbPath string) (*NotesDatabase, error) {
 		return nil, err
 	}
 
-	return &NotesDatabase{db: db}, nil
+	return &NotesDatabase{Db: db}, nil
 }
 
 func createTables(db *sql.DB) error {
@@ -97,13 +97,13 @@ func createTables(db *sql.DB) error {
 
 func (db *NotesDatabase) RebuildFTSTable(prefix string) error {
 	// Drop the old FTS table if it exists
-	_, err := db.db.Exec("DROP TABLE IF EXISTS notes_fts")
+	_, err := db.Db.Exec("DROP TABLE IF EXISTS notes_fts")
 	if err != nil {
 		return fmt.Errorf("error dropping FTS table: %v", err)
 	}
 
 	// Create a new FTS table with the provided prefix
-	_, err = db.db.Exec(fmt.Sprintf(`
+	_, err = db.Db.Exec(fmt.Sprintf(`
 		CREATE VIRTUAL TABLE notes_fts 
 		USING FTS5(key, value, content='notes', content_rowid='id', prefix='%s')
 	`, prefix))
@@ -112,7 +112,7 @@ func (db *NotesDatabase) RebuildFTSTable(prefix string) error {
 	}
 
 	// Create triggers to keep the FTS table updated
-	_, err = db.db.Exec(`
+	_, err = db.Db.Exec(`
 		CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
 			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
 		END;
@@ -131,7 +131,7 @@ func (db *NotesDatabase) RebuildFTSTable(prefix string) error {
 	}
 
 	// Rebuild the FTS table
-	_, err = db.db.Exec("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+	_, err = db.Db.Exec("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
 	if err != nil {
 		return fmt.Errorf("error rebuilding FTS table: %v", err)
 	}
