@@ -6,14 +6,20 @@
 	* ✅ If yes, then just get the connection to the db file and move on
 3. ✅ Write another piece of code for fetching or putting logic
 4. ✅ Hook everything with current main.go file, because that does the job of actually doing stuff from UI
-5. FOR GODs sake find a way to setup keyboard shortcut globally on system level from the code itself
-6. Create binaries for both fetching & noting functionality and then create their own automator quickActions
-7. Modularize the configs as in python
-8. 👨🏻‍💻 Research about RayCast kind of UI to make it more intuitive
+5. ✅ Modularize the configs as in python
+6. ✅ FOR GODs sake find a way to setup keyboard shortcut globally on system level from the code itself
+7. ✅ Research about RayCast kind of UI to make it more intuitive
 	* ✅ Install [wails UI](https://wails.io/docs/introduction) framework
    	* ✅ Install node, npm
-	* 👨🏻‍💻 [wails-vite-react-ts-tailwind-template](https://github.com/hotafrika/wails-vite-react-ts-tailwind-template) - A template for React + TypeScript + Vite + TailwindCSS
-	* Restructure the existing directory for wails Framework or create another one for the same
+	* ❌ [wails-vite-react-ts-tailwind-template](https://github.com/hotafrika/wails-vite-react-ts-tailwind-template) - A template for React + TypeScript + Vite + TailwindCSS
+		* WAILS didn't suffice the need for exact raycast like UI
+		* It also didn't work like the native Go implementation is working in terms of listening for global keyboard shortcuts
+	* ❌ Restructure the existing directory for wails Framework or create another one for the same
+8. 👨🏻‍💻 Create binaries for both fetching & noting functionality and then create their own automator quickActions
+9. 🎬 Work on auto-focusing the "Fetched Results" screen in fetch functionality
+10. 🎬 Adding delete functionality for the stored notes from zenity UIs
+
+
 
 
 ## Idea bouncing session ChatGPT
