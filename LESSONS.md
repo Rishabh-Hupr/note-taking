@@ -49,15 +49,111 @@
     is basically a new data type that has the above defined structure
     And then you can have functions that define a struct as a receiver something similar to self in python that can be used to call the parameters of the object, in Go it works something like below:
     ```
-        func (u User) funation_name() string {
+        func (u User) function_name() string {
             println(u.name, u.age)
         }
     ```
-
-
-    You can also have interfaces in go which basically lets you have a code something like this:
+    * You can have functions which can be callable from stuct objects, the one above could be called something like this:
     ```
-        type Spearker interface {
+        new_user := User{
+            name: "Rish",
+            age: 20
+        }
+
+        new_user.function_name()
+    ```
+    * You can also have nested structs, and define functions on those nested structs as well, and those functions would still be callable fby the parent stuct of the nested struct, letting you enjoy the encapsulation magic. Goes something like this:
+    ```
+        type Address struct {
+            city string
+            state string
+        }
+
+        type User struct {
+            name string
+            age int
+            Address
+        }
+
+        type User struct {
+            name string
+            age int
+            addrs Address
+        }
+
+        func (a Address) print_address() {
+            println(a.city, a.state)
+        
+        }
+        func (u User) print_user() {
+            println(u.name, u.age)
+        }
+
+
+        func main() {
+            address := Address {
+                city: "Gurgaon",
+                state: "Haryana"
+            }
+            new_user := User{
+                name: "Rish",
+                age: 20,
+                Address: address
+            }
+            new_user.print_address()
+        }
+
+        THIS THING ONLY WORKS IF YOU HAVE THE NESTED STRUCT DEFINED AS THE NAME OF THE STRUCT ITSELF AND NOT LIKE ``address Address``, i.e. LINE 75 ✅ would work, but not LINE 81 ❌
+    ```
+    * ONE THING THAT IS STILL TO BE CONFIRMED IS, can you play with structs without having stuct functions??????
+
+    CONFIRMED, it can still work with just having normal functions check below:
+    ```
+        type Addrs struct {
+            city  string
+            state string
+        }
+
+        type User struct {
+            name string
+            age  int
+            Addrs
+        }
+
+        func (a Addrs) print_address() string {
+            return a.city + ", " + a.state
+        }
+
+        func (u User) print_user() {
+            fmt.Println(u.name, u.age, u.print_address())
+        }
+
+        func playingWithStruct(u *User) {
+            u.print_user()
+            u.name = "Broooooo"
+        }
+
+        func main() {
+            address := Addrs{
+                city:  "BSR",
+                state: "UP",
+            }
+            user := User{
+                name:  "Rish",
+                age:   24,
+                Addrs: address,
+            }
+
+            //	user.print_user()
+            playingWithStruct(&user)
+            user.print_user()
+        }
+
+    ```
+
+    * You can also have interfaces in go which basically lets you have a code something like this:
+    ```
+        type Speaker interface {
             Speak() string
         }
 
@@ -80,3 +176,14 @@
             printSpeaker(Cat{})
         }
     ```
+    * Good thing about interfaces is that you can re-use the type your have created if any struct follows the interface contract(i.e. any struct that implements all the interface defined methods), hence will allow you to use the interface as datatype for playing in the code
+        NOTE: This is how CustomException can be defined in GoLang
+        Because the source code of go has
+        ```
+            type error interface {
+                Error() string
+            }
+        ```
+
+        Hence you can do any custom `ErrorStruct` and then you can create an `Error` function for the same `ErrorStruct` and then it will be made available by the `error` type to be usable across the code for error handling
+    

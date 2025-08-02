@@ -1,9 +1,12 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/ncruces/zenity"
 )
 
 const logStore string = "/Users/machupr/note-taking/go-rewrite/app.log"
@@ -26,7 +29,10 @@ func LogIt(varToLog string) {
 
 func Error_happened(err error) bool {
 	if err != nil {
-		framedError := fmt.Sprintf("ERROR: %s", err)
+		if errors.Is(err, zenity.ErrCanceled) {
+			return false // User canceled the operation, not an error
+		}
+		framedError := fmt.Sprintf("‼️ ERROR: %s", err)
 		LogIt(framedError)
 		return true
 	}

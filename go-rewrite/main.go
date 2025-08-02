@@ -13,7 +13,7 @@ import (
 const DBPath = "/Users/machupr/note-taking/go-rewrite/db"
 
 func fetch(db *sql.DB) {
-	key, err := zenity.Entry("Enter the key", zenity.Title("Storing note..."))
+	key, err := zenity.Entry("Enter the key", zenity.Title("Fetching note..."))
 	if utils.Error_happened(err) {
 		return
 	}
@@ -30,14 +30,18 @@ func fetch(db *sql.DB) {
 	for key, value := range output {
 		args = append(args, fmt.Sprintf("%s: %s", key, value))
 	}
+
 	var selectedItem string
 	if len(args) > 0 {
-		selectedItem, err = zenity.ListItems("Fetched Results", args...)
+		selectedItem, err = zenity.List("(Hit enter to copy the selected item to clipboard)", args, zenity.Title("Fetched Results"), zenity.OKLabel("📋"), zenity.CancelLabel("Close"))
 		if utils.Error_happened(err) {
-			var errorString = fmt.Sprintf("‼️ %s", err)
-			zenity.Info(errorString)
 			return
 		}
+
+		// if errors.Is(err, zenity.ErrUnsupported) {
+		// 	// lets call the delete function on the selected item
+		// 	fmt.Println("Delete button clicked")
+		// }
 	}
 	err = clipboard.Init()
 	if err != nil {
