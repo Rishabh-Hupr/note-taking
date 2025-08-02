@@ -12,555 +12,303 @@
 	* ✅ Install [wails UI](https://wails.io/docs/introduction) framework
    	* ✅ Install node, npm
 	* ❌ [wails-vite-react-ts-tailwind-template](https://github.com/hotafrika/wails-vite-react-ts-tailwind-template) - A template for React + TypeScript + Vite + TailwindCSS
-		* WAILS didn't suffice the need for exact raycast like UI
-		* It also didn't work like the native Go implementation is working in terms of listening for global keyboard shortcuts
+		#### WAILS didn't suffice the need for exact raycast like UI, there was always a white background screen which stays there no matter you get rid of all of the CSS code, checked few issues on github still no such working solution found. 
+		#### It also didn't work like the native Go implementation is working in terms of listening for global keyboard shortcuts, it could listen for once the application goes in running, still NOT A GLOBAL KEYBOARD SHORTCUT
 	* ❌ Restructure the existing directory for wails Framework or create another one for the same
 8. 👨🏻‍💻 Create binaries for both fetching & noting functionality and then create their own automator quickActions
-9. 🎬 Work on auto-focusing the "Fetched Results" screen in fetch functionality
-10. 🎬 Adding delete functionality for the stored notes from zenity UIs
+9. ❌ Work on auto-focusing the "Fetched Results" screen in fetch functionality
+10. ❌ Adding delete functionality for the stored notes from zenity UIs
+#### Deprecating the zenity integration, because of an obstacle when it comes to deleting feature for a note. Here is the issue that I opened: https://github.com/ncruces/zenity/issues/150
+11. 🎬 Looking into putting this Butler in a CLI App, using BubbleTea at the moment, though we have some other options:
+  * GoCUI
+  * Termui
+  
+**NOTE**:  RATIONALE behind Bubbletea is that it is `well-documented` & `event-driven` TUI.
+
+12. 🎬 Put the Note functionality behind a BubbleTea App
+13. 🎬 Put the Fetch functionality behind another BubbleTea App
+14. 🎬 Weigh if it is better to have different binaries for fetch & note or Just one binary for fetching and noting
+15. 🎬 Come up with a first MVP and test it out.
 
 
 
+## 💡 Latest Idea bouncing session with ChatGPT
+Q: So far everything in the whole app and go language, and I was trying to use zenity to create some visual pop-ups on the screen for storing a note or fetching a note and trying to add functionality to delete the note on that, however I don't think that's visible and I feel that it's not so intuitive and s common because the window doesn't changes the focus to the notes window automatically so now I'm thinking about a different approach that is, I want to create it in SCLI format so that as soon as someone hits, the keyboard shortcuts are for fetching or putting a note in the storage so for noting functionality, I don't think I need to have some kind of you. I accept the basic text boxes that will help you with the note however for fetching functionality, I would rather want to see all the notes in CLI so imagine I had a keyboard shortcut. It asks me for a note that I want to fetch in a CLI so that a terminal opens and I put in my key and then I hit enter and then I put in my value that I want to store the key and then it's all set back. I already have the business logic of storing and fetch in the note. The only thing that I'm sending is how to produce that data so I'm thinking to use or build my own tool in NCL format so that a terminal opens up which if you want to fetch a note, you fetch a note against your stored keys and you will get a bunch of notes which which which match your ke and you can navigate through those notes using keyboard up and down keys so that you can basically navigate those notes and if you hit backspace or D on your keyboard, that note should get deleted if you had enter on any of those notes that will get copied to your clipboard
 
-## Idea bouncing session ChatGPT
-To rewrite this Python code in Go, we will need to adapt several aspects of the Python code. Specifically, we’ll handle database connections, SQL statements, and triggers, as well as the creation of tables, much like the original code but with Go's syntax and libraries.
+A:
+This is an excellent pivot — you're describing a **CLI-first productivity tool** with keyboard-driven note access, and that can be a **highly effective, developer-friendly product niche**. Let's lock down your vision and then design the system around it.
 
-We'll use Go's github.com/mattn/go-sqlite3 package for SQLite database interaction. This is the most commonly used SQLite driver in Go. Additionally, Go does not have built-in support for context management like Python's with statement, so we will handle database connections manually and ensure proper cleanup.
+## 🧠 Summary of Your New Idea
 
-Here’s the Go version of the NotesDatabase class:
+You're building a:
 
-```
-package main
+> **Keyboard-triggered terminal note interface**
+> Where:
+>
+> * ⌨️ Keyboard shortcut opens terminal window (SCLI format)
+> * 🧠 You type a key → fetch notes matching the key
+> * ⬆️⬇️ Use up/down to navigate matches
+> * ↩️ `Enter` → copies note to clipboard
+> * 🅧 `Backspace` or `D` → deletes the note
 
-import (
-	"database/sql"
-	"fmt"
-	"os"
+You **already have**:
 
-	_ "github.com/mattn/go-sqlite3"
-)
+* Written in **Go**
+* Logic for **storing, fetching notes**
+* Original attempt using Ziti (UI pop-ups) felt non-intuitive
 
-const DBPath = "./data" // Replace with your actual path
-const DBFile = DBPath + "/notes.db"
+You want to:
 
-type NotesDatabase struct {
-	db *sql.DB
-}
+* Make it **CLI-first**
+* Make it feel **fast**, **keyboard-native**, and **invisible** when idle
 
-func NewNotesDatabase(dbPath string) (*NotesDatabase, error) {
-	// Create the directory if it doesn't exist
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(dbPath, 0755); err != nil {
-			return nil, fmt.Errorf("error creating database directory: %v", err)
-		}
-	}
+This is a solid shift — you’re aligning with developer tools like `fzf`, `ripgrep`, `pass`, and `tldr` — tools devs love because they're fast and keyboard-centric.
 
-	// Open or create the database
-	db, err := sql.Open("sqlite3", DBFile)
-	if err != nil {
-		return nil, fmt.Errorf("error opening database: %v", err)
-	}
+---
 
-	// Enable foreign keys and WAL mode
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
-	if err != nil {
-		return nil, fmt.Errorf("error enabling foreign keys: %v", err)
-	}
+## 🛠️ Suggested Architecture
 
-	_, err = db.Exec("PRAGMA journal_mode = WAL")
-	if err != nil {
-		return nil, fmt.Errorf("error setting journal mode: %v", err)
-	}
+### 🏗️ Structure:
 
-	// Create the necessary tables
-	if err := createTables(db); err != nil {
-		return nil, err
-	}
+* CLI app (built in Go)
+* Global keyboard shortcut (calls the CLI app with a specific mode)
+* Notes stored in lightweight storage (can be JSON, BoltDB, or simple files)
+* Output rendered in terminal UI (TUI)
+* Clipboard integration
+* Terminal behavior: minimal, popup style (like `fzf` or `rofi`)
 
-	return &NotesDatabase{db: db}, nil
-}
+---
 
-func createTables(db *sql.DB) error {
-	// Main notes table
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS notes (
-			id INTEGER PRIMARY KEY,
-			key TEXT UNIQUE NOT NULL,
-			value TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating notes table: %v", err)
-	}
+## 🔧 Components You’ll Need
 
-	// FTS5 virtual table for full-text search
-	_, err = db.Exec(`
-		CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts 
-		USING FTS5(key, value, content='notes', content_rowid='id', prefix='2 3 4 5 6');
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating FTS5 table: %v", err)
-	}
+### 1. **Global Shortcut to Launch Terminal Tool**
 
-	// Triggers to keep the FTS index updated
-	_, err = db.Exec(`
-		CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
-		END;
-		
-		CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
-		END;
-		
-		CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
-			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
-		END;
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating triggers: %v", err)
-	}
+* On **macOS**: use `Automator`, `hammerspoon`, or `raycast` to trigger your app
+* On **Linux**: `xdotool`, `rofi`, or custom keybind via WM
+* On **Windows**: AutoHotKey or `Run` + keybind
 
-	return nil
-}
+The shortcut should run your CLI binary with a mode, like:
 
-func (db *NotesDatabase) RebuildFTSTable(prefix string) error {
-	// Drop the old FTS table if it exists
-	_, err := db.db.Exec("DROP TABLE IF EXISTS notes_fts")
-	if err != nil {
-		return fmt.Errorf("error dropping FTS table: %v", err)
-	}
-
-	// Create a new FTS table with the provided prefix
-	_, err = db.db.Exec(fmt.Sprintf(`
-		CREATE VIRTUAL TABLE notes_fts 
-		USING FTS5(key, value, content='notes', content_rowid='id', prefix='%s')
-	`, prefix))
-	if err != nil {
-		return fmt.Errorf("error creating new FTS table: %v", err)
-	}
-
-	// Create triggers to keep the FTS table updated
-	_, err = db.db.Exec(`
-		CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
-		END;
-
-		CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
-		END;
-
-		CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
-			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
-		END;
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating rebuild triggers: %v", err)
-	}
-
-	// Rebuild the FTS table
-	_, err = db.db.Exec("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
-	if err != nil {
-		return fmt.Errorf("error rebuilding FTS table: %v", err)
-	}
-
-	return nil
-}
-
-func main() {
-	// Initialize the database
-	db, err := NewNotesDatabase(DBPath)
-	if err != nil {
-		fmt.Println("Error initializing database:", err)
-		return
-	}
-	defer db.db.Close()
-
-	// Uncomment below to rebuild the FTS table
-	// if err := db.RebuildFTSTable("2 3 4 5"); err != nil {
-	//	fmt.Println("Error rebuilding FTS table:", err)
-	// }
-}
+```bash
+notecli fetch
+notecli put
 ```
 
-Explanation of Changes:
-Database Handling:
+---
 
-Go does not have an equivalent to Python's with statement, so we manually manage the database connection. In the NewNotesDatabase function, we open the database using sql.Open and handle any errors.
+### 2. **TUI Framework (for CLI interaction)**
 
-Creating Tables and Triggers:
+Use a Go TUI library like:
 
-In Go, SQL statements are executed using db.Exec for each table and trigger creation, similar to the conn.execute in Python. We also ensure foreign keys and WAL mode are enabled after the database is opened.
+| Library                                                   | Pros                     | Notes                   |
+| --------------------------------------------------------- | ------------------------ | ----------------------- |
+| [`bubbletea`](https://github.com/charmbracelet/bubbletea) | Modern, event-driven TUI | Very well-documented    |
+| [`gocui`](https://github.com/jroimartin/gocui)            | Lightweight, Curses-like | Less abstract, more raw |
+| [`termui`](https://github.com/gizak/termui)               | Great for dashboards     | Might be overkill here  |
 
-Rebuilding the FTS Table:
+📌 **Recommended:** Start with `bubbletea` — ergonomic and expressive.
 
-The RebuildFTSTable method drops and recreates the notes_fts table, just like in the Python code. We use fmt.Sprintf to embed the prefix parameter into the SQL query.
+---
 
-Error Handling:
+### 3. **Clipboard Integration**
 
-We handle all errors in Go using fmt.Errorf to wrap errors with relevant context, which is a common Go practice.
+Use `github.com/atotto/clipboard` in Go:
 
-Go SQLite Setup:
-You need to install the go-sqlite3 package using:
+```go
+import "github.com/atotto/clipboard"
 
+err := clipboard.WriteAll("my copied note")
 ```
-go get github.com/mattn/go-sqlite3
+
+---
+
+### 4. **Storage Layer**
+
+You said it’s already done — but here's a note:
+
+* If you're using something like BoltDB or SQLite — great.
+* Keep it simple: `map[string][]string` logic works with JSON too.
+
+---
+
+### 5. **Search + Display**
+
+* When the user runs `notecli fetch`, show:
+
+  * A prompt asking for the **key or keyword**
+  * Matching notes displayed below
+  * Highlighted note changes as user presses ⬆️⬇️
+* Enter = copy
+* D or Backspace = delete
+
+You can even add fuzzy search later (`fzf`-style).
+
+---
+
+### 🧪 Sample CLI Interaction (MVP Sketch)
+
+```bash
+$ notecli fetch
+
+> Search: pro
+
+  [1] project ideas - “build AI chatbot”
+  [2] progress log - “completed module A”
+  [3] promotion tips - “ask for feedback…”
+
+Use ↑ ↓ to navigate. [Enter] to copy. [D] to delete.
 ```
-The program assumes that the SQLite database will be located at ./data/notes.db. You can modify the DBPath constant for a different path.
 
-Let me know if you'd like further clarification or modifications!
+---
+
+## 🚀 Suggested Phases
+
+### ✅ Phase 1: MVP
+
+* `notecli fetch` with a prompt, list, navigation
+* `notecli put` that opens a textbox (raw input)
+* Storage layer (file or BoltDB)
+* Clipboard support
+
+### 🔥 Phase 2: Add polish
+
+* Fuzzy search
+* Syntax highlighting (markdown notes)
+* Tags or note metadata
+* Configurable keyboard shortcuts
+* Auto-launch CLI from system-wide hotkey
+
+### 🧩 Phase 3: Monetization & Distribution
+
+* Package as CLI binary for all platforms
+* Offer Pro version:
+
+  * Encrypted storage
+  * Sync via Git or Dropbox
+  * Templated note types
+  * Web UI for reviewing archive
+
+---
+
+## 🎯 Business Angle (CLI-first Tool)
+
+You're now in a good niche:
+
+| Target Users      | Needs                      |
+| ----------------- | -------------------------- |
+| Developers        | Fast access, keyboard-only |
+| Writers/coders    | Low-distraction tools      |
+| Privacy nerds     | Local storage, no cloud    |
+| Linux/macOS users | Prefer CLI over GUI bloat  |
+
+---
+
+## ✅ Next Steps
+
+1. **Pick your TUI lib**: `bubbletea` recommended
+2. Want help with a **starter Go project skeleton** for this CLI?
+3. Want help writing the `notecli fetch` interactive part?
+
+Let me know which part you want to build next — and I can generate some starter code or design for it.
+
+---
 
 
+Q: can I do live searches using fzf on buttle tea screen?
 
+A:
+Great question — you're trying to combine the **live fuzzy-search power of `fzf`** with the **custom UI and interaction control of `bubbletea`**. Here's the short version:
 
-You said:
-i have seen another mordernc/sqlite as well, what is the right choice considering long-term maintainability of it and also after the NewNotesDatabase returns the db pointer, we can use that db pointer to store & fetch the stuff in the same db, right?
+---
 
+## ✅ **Can you do live fuzzy searching in a `bubbletea` screen?**
 
-Also, will it work, if I want to bundle this with other go files in a binary and then execute that binary at random times, in a sense that it won't create the db again and again and always refer to the existing db?
+### **Yes, but not directly using `fzf` itself — you’ll need to:**
 
-ChatGPT said:
-Great questions! Let's break down your queries and address them one by one.
+* Implement **fuzzy matching in Go** (there are libraries)
+* Re-render the filtered list inside a `bubbletea` `Model` as the user types
 
-1. modernc/sqlite vs github.com/mattn/go-sqlite3
-Which is the right choice for long-term maintainability?
-Both libraries, modernc/sqlite and github.com/mattn/go-sqlite3, are popular Go SQLite drivers, but they have different trade-offs. Here's a comparison:
+---
 
-github.com/mattn/go-sqlite3:
+## 🔍 Why you can’t (easily) embed `fzf` into `bubbletea`
 
-This is the most widely used Go SQLite driver and is based on the C SQLite library.
+`fzf` is a standalone TUI app — it **takes over the terminal** using its own UI. So you can't run it *inside* a `bubbletea` app the way you'd embed a widget.
 
-Pros:
+But you **can replicate fzf-like behavior** inside `bubbletea` using Go libraries.
 
-Well-documented and widely adopted.
+---
 
-High compatibility with SQLite features.
+## 🛠️ How to Do Fuzzy Search in `bubbletea`
 
-Active maintenance and community support.
+### 1. Use a fuzzy matching library in Go:
 
-If you're working with an existing codebase that uses this, it may be easier to stick with it.
+| Library                                                                                             | Description              |
+| --------------------------------------------------------------------------------------------------- | ------------------------ |
+| [`github.com/lithammer/fuzzysearch`](https://github.com/lithammer/fuzzysearch)                      | Simple and effective     |
+| [`github.com/sahilm/fuzzy`](https://github.com/sahilm/fuzzy)                                        | Fast and ranked matching |
+| [`github.com/renstrom/fuzzysearch/fuzzy`](https://pkg.go.dev/github.com/renstrom/fuzzysearch/fuzzy) | Older but usable         |
 
-Cons:
+📌 Recommended: [`sahilm/fuzzy`](https://github.com/sahilm/fuzzy)
 
-It requires CGo, which means it depends on C compiler availability and introduces additional complexity in cross-compilation (e.g., for different platforms like ARM, Windows).
+Example usage:
 
-Potential performance overhead due to CGo.
-
-modernc/sqlite:
-
-This is a newer, pure Go SQLite implementation, meaning it does not require CGo, and is written entirely in Go.
-
-Pros:
-
-No need for CGo, so it's easier to compile for different platforms without needing a C compiler.
-
-Can be a better choice if you're working in a restricted environment where CGo is not feasible.
-
-Generally faster because it doesn't rely on C bindings.
-
-Cons:
-
-Being a pure Go implementation, it may lag behind in some cutting-edge features of SQLite or have some performance trade-offs compared to the native C bindings in some cases.
-
-Smaller user base and potentially fewer community-driven resources.
-
-Which one should you choose?
-For long-term maintainability: If you’re working with an environment where portability (cross-compiling) and simplicity are more important, modernc/sqlite could be a better choice because it doesn’t rely on CGo. However, if you need compatibility with all SQLite features and the proven robustness of the C SQLite library, github.com/mattn/go-sqlite3 is more established.
-
-Recommendation: If you don’t have specific requirements around CGo or cross-compilation and you want long-term support, github.com/mattn/go-sqlite3 is still the safe bet due to its popularity and wide adoption. But if you want to avoid CGo and you’re looking for a purely Go-based solution, modernc/sqlite is a solid choice.
-
-For your use case, if you're looking to bundle the Go program into a single binary and deploy it, modernc/sqlite might be better since you won’t need to worry about dependencies on a C compiler. But either option will work fine for your task.
-
-2. Using the DB Pointer After NewNotesDatabase Returns It
-Yes, once the NewNotesDatabase function returns the *sql.DB pointer, you can continue using that pointer to perform database operations (store and fetch data) as long as the database connection remains open.
-
-For example, after calling NewNotesDatabase, you can call methods like db.db.Exec to execute SQL commands, or db.db.Query to fetch data. The connection remains active as long as you don't explicitly close it (e.g., using defer db.db.Close()).
-
-Here’s an example of how you can use the database after initialization:
-
+```go
+matches := fuzzy.Find("search term", listOfNotes)
 ```
-// Initialize the database
-db, err := NewNotesDatabase(DBPath)
-if err != nil {
-    fmt.Println("Error initializing database:", err)
-    return
-}
-defer db.db.Close()
 
-// Now you can perform database operations using db.db
-_, err = db.db.Exec("INSERT INTO notes (key, value) VALUES (?, ?)", "note1", "This is a note")
-if err != nil {
-    fmt.Println("Error inserting note:", err)
-    return
-}
+---
 
-// Query example
-rows, err := db.db.Query("SELECT id, key, value FROM notes")
-if err != nil {
-    fmt.Println("Error querying notes:", err)
-    return
-}
-defer rows.Close()
+### 2. In your `bubbletea.Model`, store:
 
-// Process query results
-for rows.Next() {
-    var id int
-    var key, value string
-    if err := rows.Scan(&id, &key, &value); err != nil {
-        fmt.Println("Error scanning row:", err)
-        return
-    }
-    fmt.Printf("ID: %d, Key: %s, Value: %s\n", id, key, value)
-}
-```
-3. Bundling the Code Into a Binary Without Creating the DB Again
-Yes, your Go binary will not recreate the database if it already exists. Here’s why:
-
-In the NewNotesDatabase function, you check if the directory exists. If it doesn't, you create it. Then you open the SQLite database with sql.Open, and SQLite will automatically create the database file if it doesn’t exist. If the database file exists, it will just open it, so no duplication occurs.
-
-When you bundle your Go program into a binary (using go build), the binary will execute and use the existing database if it already exists. The program will only create a new one if it does not exist, and the NewNotesDatabase function will handle that gracefully.
-
-No worries about overwriting: SQLite in the NewNotesDatabase function uses sqlite3.Open to open the existing notes.db file. If the file is already there, it will open the existing database and won't overwrite or recreate it.
-
-Example scenario:
-If you deploy your Go binary and run it multiple times, it will not create the database again unless the database directory is missing or you specify a different path.
-
-If the database exists, you can keep performing INSERT, SELECT, UPDATE, etc., operations.
-
-4. Will It Work If the Binary Runs Randomly?
-Yes, it will work. The binary will:
-
-Check if the notes.db file exists in the provided directory.
-
-If the database file exists, it will connect to it.
-
-If the database does not exist, it will create it.
-
-So even if you run your binary randomly at different times, it will always refer to the existing database file.
-
-For example, if you run the binary at random times, as long as the database exists on disk, your program will interact with it directly. SQLite takes care of concurrent access as well (in WAL mode), so multiple instances can access the database without issues, provided you handle concurrency well in your code.
-
-Summary:
-modernc/sqlite vs github.com/mattn/go-sqlite3: Both are good choices, but github.com/mattn/go-sqlite3 is more widely used and has better support in terms of community and features. If you want to avoid CGo, modernc/sqlite is a solid alternative.
-
-Using DB pointer: Yes, you can continue using the DB pointer (db.db) to store and fetch data in the same session.
-
-Bundling and running the binary: Your Go binary will not recreate the database file if it exists, it will just use the existing file.
-
-Let me know if you have more questions or need further clarification!
-
-
-
-
-You said:
-what if I execute the binary for the first time and I get the db file and then after 2 hours I execute the binary with the logic to only put something in the database, how would that work? where will I get the db pointer again from/
-
-ChatGPT said:
-Good question! Let me break it down step-by-step for you.
-
-When you execute your Go binary for the first time and the database file is created, you essentially create a persistent database (notes.db in your case) that resides on disk. After that, when you execute the binary again (even hours later), the binary will check if the database already exists. If it does, the binary will simply open the existing database file and continue interacting with it.
-
-Scenario Breakdown:
-First Execution:
-
-When you first run the binary, the program will check if the database file (notes.db) exists in the specified path.
-
-If it doesn't exist, it will create the database file.
-
-The Go program will create a connection to the database using sql.Open and return the *sql.DB pointer to interact with the database.
-
-Subsequent Executions (e.g., after 2 hours):
-
-When you run the binary again (after 2 hours in your example), the program will again check if the database file exists.
-
-Since the file (notes.db) was created earlier, the program will open the existing file instead of creating a new one.
-
-The connection to the database will be established just as it was the first time, and you’ll be able to interact with the same database using the same *sql.DB pointer.
-
-How does this work in the Go code?
-The *sql.DB pointer, which represents the active connection to the SQLite database, is created when you call NewNotesDatabase. This pointer is not stored globally; instead, you are given access to it via the returned object. So each time you run the binary, the connection will be established when the NewNotesDatabase function is called, and it will always open the same database file on disk (if the file exists).
-
-Let's look at how this would work with a persistent connection:
-
-Example Code:
-main.go
-```
-package main
-
-import (
-	"database/sql"
-	"fmt"
-	"log"
-	"os"
-
-	_ "github.com/mattn/go-sqlite3"
-)
-
-const DBPath = "./data" // Path where the DB is stored
-const DBFile = DBPath + "/notes.db"
-
-// NotesDatabase struct to hold the database connection
-type NotesDatabase struct {
-	db *sql.DB
-}
-
-// NewNotesDatabase initializes the database connection and creates necessary tables if they don't exist
-func NewNotesDatabase(dbPath string) (*NotesDatabase, error) {
-	// Create the directory if it doesn't exist
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(dbPath, 0755); err != nil {
-			return nil, fmt.Errorf("error creating database directory: %v", err)
-		}
-	}
-
-	// Open or create the SQLite database
-	db, err := sql.Open("sqlite3", DBFile)
-	if err != nil {
-		return nil, fmt.Errorf("error opening database: %v", err)
-	}
-
-	// Enable foreign keys and WAL mode
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		return nil, fmt.Errorf("error enabling foreign keys: %v", err)
-	}
-	if _, err := db.Exec("PRAGMA journal_mode = WAL"); err != nil {
-		return nil, fmt.Errorf("error setting journal mode: %v", err)
-	}
-
-	// Create necessary tables if they don't exist
-	if err := createTables(db); err != nil {
-		return nil, err
-	}
-
-	// Return NotesDatabase struct containing the DB connection
-	return &NotesDatabase{db: db}, nil
-}
-
-// createTables creates the necessary tables and triggers
-func createTables(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS notes (
-			id INTEGER PRIMARY KEY,
-			key TEXT UNIQUE NOT NULL,
-			value TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating notes table: %v", err)
-	}
-
-	// Create the FTS5 virtual table for full-text search
-	_, err = db.Exec(`
-		CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts 
-		USING FTS5(key, value, content='notes', content_rowid='id', prefix='2 3 4 5 6');
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating FTS5 table: %v", err)
-	}
-
-	// Triggers to update the FTS table on insert, update, or delete
-	_, err = db.Exec(`
-		CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
-		END;
-		
-		CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
-		END;
-		
-		CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, key, value) VALUES('delete', old.id, old.key, old.value);
-			INSERT INTO notes_fts(rowid, key, value) VALUES (new.id, new.key, new.value);
-		END;
-	`)
-	if err != nil {
-		return fmt.Errorf("error creating triggers: %v", err)
-	}
-
-	return nil
-}
-
-// InsertNote inserts a new note into the database
-func (db *NotesDatabase) InsertNote(key, value string) error {
-	_, err := db.db.Exec("INSERT INTO notes (key, value) VALUES (?, ?)", key, value)
-	if err != nil {
-		return fmt.Errorf("error inserting note: %v", err)
-	}
-	return nil
-}
-
-// QueryNotes fetches all notes from the database
-func (db *NotesDatabase) QueryNotes() ([]string, error) {
-	rows, err := db.db.Query("SELECT key, value FROM notes")
-	if err != nil {
-		return nil, fmt.Errorf("error querying notes: %v", err)
-	}
-	defer rows.Close()
-
-	var notes []string
-	for rows.Next() {
-		var key, value string
-		if err := rows.Scan(&key, &value); err != nil {
-			return nil, fmt.Errorf("error scanning row: %v", err)
-		}
-		notes = append(notes, fmt.Sprintf("Key: %s, Value: %s", key, value))
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %v", err)
-	}
-
-	return notes, nil
-}
-
-func main() {
-	// Initialize the database
-	db, err := NewNotesDatabase(DBPath)
-	if err != nil {
-		log.Fatalf("Error initializing database: %v", err)
-	}
-	defer db.db.Close()
-
-	// Insert a new note into the database
-	err = db.InsertNote("note1", "This is the first note")
-	if err != nil {
-		log.Fatalf("Error inserting note: %v", err)
-	}
-
-	// Query and print all notes from the database
-	notes, err := db.QueryNotes()
-	if err != nil {
-		log.Fatalf("Error querying notes: %v", err)
-	}
-	for _, note := range notes {
-		fmt.Println(note)
-	}
+```go
+type Model struct {
+    input string          // what the user is typing
+    matches []string      // currently filtered notes
+    allNotes []string     // full unfiltered list
+    selectedIndex int     // for arrow navigation
 }
 ```
-Explanation:
-Database Connection: The *sql.DB object is returned from the NewNotesDatabase function. This object represents an open connection to the SQLite database (notes.db). You can reuse this connection for all future database operations, whether it's reading, writing, or modifying data.
 
-First Run:
+On every keystroke:
 
-If the notes.db file doesn't exist, it will be created and the necessary tables and triggers will be set up automatically.
+* Update `input`
+* Run `fuzzy.Find(input, allNotes)` to get `matches`
+* Update the UI accordingly
 
-Subsequent Runs:
+---
 
-If the binary is executed again (e.g., after 2 hours), the NewNotesDatabase function will open the existing notes.db file. It will not recreate the file unless it is missing.
+### 3. Handle key messages
 
-Persistence of Database Across Executions:
-Persistent Storage: The database (notes.db) resides on disk in the path you specify (./data/notes.db). As long as that file exists, running the binary will open the same database file and continue working with it.
+In your `Update()` function, handle:
 
-No Re-creation: The program will not create a new database file or lose data upon subsequent executions. Instead, it will always interact with the existing notes.db file.
+* Character keys (to update the `input`)
+* `Enter` (to copy to clipboard)
+* `D` or `Backspace` (to delete)
+* Arrow keys (to move through `matches`)
 
-In Summary:
-When you run the binary for the first time, it creates the notes.db file if it doesn’t exist, sets up the tables, and returns the database connection (*sql.DB).
+---
 
-When you run the binary again after a delay (e.g., 2 hours), it will open the existing database file and continue using that file. No new database is created.
+## 🧪 Example Interaction
 
-The *sql.DB pointer remains valid as long as the database connection is open, and you can continue querying or inserting data.
+```
+Search: pro
 
-This approach ensures that the database persists across multiple runs of the binary and only gets created once. Let me know if you need further clarification!
+> [x] project planning - “next sprint goals”
+  [ ] progress log - “finished module B”
+  [ ] profile notes - “user study feedback”
+
+⬆️⬇️ to move | ↩️ to copy | D to delete
+```
+
+---
+
+## 🧰 Want a Starter Template?
+
+I can give you:
+
+* A minimal `bubbletea` program
+* With a fuzzy search input box
+* That shows a filtered list
+* And copies the selected note to clipboard with `Enter`
+
+Would you like me to generate that now?
