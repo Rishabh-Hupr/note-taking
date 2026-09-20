@@ -4,11 +4,16 @@ import Foundation
 // newline-delimited JSON protocol over its stdin/stdout. Requests are matched to
 // responses by id via continuations. If the process dies it relaunches with a
 // small backoff (basic watchdog) and fails any in-flight requests.
-final class SidecarClient {
+// @unchecked Sendable: all shared mutable state is synchronized via `lock`, so
+// it's safe to reference across the read/write dispatch queues.
+final class SidecarClient: @unchecked Sendable {
     enum SidecarError: Error {
         case notRunning
         case sidecar(String)
+        case timeout
     }
+
+    private let requestTimeout: TimeInterval = 5.0
 
     private let binaryURL: URL
     private let dataDir: String?
@@ -66,6 +71,7 @@ final class SidecarClient {
         lock.lock()
         let inflight = pending
         pending.removeAll()
+        readBuffer.removeAll() // drop any half-received line so it can't corrupt the next frame
         stdin = nil
         process = nil
         let delay = restartDelay
@@ -131,11 +137,33 @@ final class SidecarClient {
                 return
             }
             registerPending(id, cont)
-            writeQueue.async {
-                handle.write(data)
-                handle.write(Data([0x0A]))
+
+            // Safety net: never let a caller hang if a response is lost — a crash,
+            // a garbled/undecodable frame, or a register/terminate race.
+            writeQueue.asyncAfter(deadline: .now() + requestTimeout) { [weak self] in
+                self?.failPending(id, SidecarError.timeout)
+            }
+
+            writeQueue.async { [weak self] in
+                do {
+                    // Throwing API: writing to a dead pipe fails the request
+                    // instead of raising an uncatchable ObjC exception.
+                    try handle.write(contentsOf: data)
+                    try handle.write(contentsOf: Data([0x0A]))
+                } catch {
+                    self?.failPending(id, SidecarError.notRunning)
+                }
             }
         }
+    }
+
+    // Resolve a pending request with an error if it hasn't already completed.
+    // removeValue makes response/timeout/write-error races resolve to one winner.
+    private func failPending(_ id: Int, _ error: Error) {
+        lock.lock()
+        let cont = pending.removeValue(forKey: id)
+        lock.unlock()
+        cont?.resume(throwing: error)
     }
 
     func ping() async throws -> Bool {
