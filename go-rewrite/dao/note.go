@@ -12,9 +12,14 @@ func PutNote(db *sql.DB, n Note) error {
 	utils.LogIt("-------------")
 	utils.LogIt(fmt.Sprintf("Received key: %s; value: %s", n.Key, n.Value))
 
+	// Upsert: insert a new note, or update value on an existing key. created_at
+	// is left untouched on update (preserved from first insert); updated_at is
+	// bumped. On insert, both timestamps come from the column DEFAULTs.
 	_, err := db.Exec(`
-		INSERT OR REPLACE INTO notes(key, value, created_at)
-		VALUES ($1, $2, CURRENT_TIMESTAMP)
+		INSERT INTO notes(key, value) VALUES ($1, $2)
+		ON CONFLICT(key) DO UPDATE SET
+			value = excluded.value,
+			updated_at = CURRENT_TIMESTAMP
 	`, n.Key, n.Value)
 	if err != nil {
 		utils.Error_happened(err)

@@ -13,8 +13,8 @@ func ShowDB(db *sql.DB) ([]Note, error) {
 	utils.LogIt("Printing database...")
 
 	rows, err := db.Query(`
-		SELECT key, value, created_at FROM notes
-		ORDER BY created_at DESC
+		SELECT key, value, created_at, updated_at FROM notes
+		ORDER BY updated_at DESC
 	`)
 	if err != nil {
 		utils.Error_happened(err)
@@ -25,7 +25,7 @@ func ShowDB(db *sql.DB) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt); err != nil {
+		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			utils.Error_happened(err)
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func FetchNote(db *sql.DB, query string) ([]Note, error) {
 	match := fmt.Sprintf(`"%s"*`, strings.ReplaceAll(query, `"`, `""`))
 
 	rows, err := db.Query(`
-		SELECT notes.key, notes.value, notes.created_at, notes_fts.rank
+		SELECT notes.key, notes.value, notes.created_at, notes.updated_at, notes_fts.rank
 		FROM notes
 		JOIN notes_fts ON notes.id = notes_fts.rowid
 		WHERE notes_fts MATCH ?
@@ -61,7 +61,7 @@ func FetchNote(db *sql.DB, query string) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.Rank); err != nil {
+		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt, &n.Rank); err != nil {
 			utils.Error_happened(err)
 			return nil, err
 		}
@@ -79,9 +79,9 @@ func FetchNote(db *sql.DB, query string) ([]Note, error) {
 func fetchLike(db *sql.DB, query string) ([]Note, error) {
 	like := "%" + query + "%"
 	rows, err := db.Query(`
-		SELECT key, value, created_at FROM notes
+		SELECT key, value, created_at, updated_at FROM notes
 		WHERE key LIKE ? OR value LIKE ?
-		ORDER BY created_at DESC
+		ORDER BY updated_at DESC
 	`, like, like)
 	if err != nil {
 		utils.Error_happened(err)
@@ -92,7 +92,7 @@ func fetchLike(db *sql.DB, query string) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt); err != nil {
+		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			utils.Error_happened(err)
 			return nil, err
 		}

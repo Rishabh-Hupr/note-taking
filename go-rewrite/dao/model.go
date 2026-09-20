@@ -6,5 +6,6 @@ type Note struct {
 	Key       string  `json:"key"`
 	Value     string  `json:"value"`
 	CreatedAt string  `json:"created_at"`
+	UpdatedAt string  `json:"updated_at"`
 	Rank      float64 `json:"rank"`
 }

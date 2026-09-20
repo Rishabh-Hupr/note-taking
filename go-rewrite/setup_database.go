@@ -60,7 +60,8 @@ func createTables(db *sql.DB) error {
 			id INTEGER PRIMARY KEY,
 			key TEXT UNIQUE NOT NULL,
 			value TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
