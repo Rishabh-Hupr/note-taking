@@ -7,8 +7,12 @@ final class ValueTextView: NSTextView {
     var onCancel: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 36, event.modifierFlags.contains(.command) { // ⌘Return
-            onSave?()
+        if event.keyCode == 36 { // Return
+            if event.modifierFlags.contains(.command) {
+                insertNewline(nil) // ⌘Return → newline
+            } else {
+                onSave?() // Return → save
+            }
             return
         }
         if event.keyCode == 53 { // Esc
@@ -46,7 +50,7 @@ final class PutViewController: NSViewController {
         effect.layer?.cornerRadius = 12
         effect.layer?.masksToBounds = true
         self.view = effect
-        view.frame = NSRect(x: 0, y: 0, width: 640, height: 240)
+        view.frame = NSRect(x: 0, y: 0, width: 640, height: 178)
 
         // Key (single line)
         keyField.translatesAutoresizingMaskIntoConstraints = false
@@ -81,7 +85,7 @@ final class PutViewController: NSViewController {
 
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.textColor = .secondaryLabelColor
-        statusLabel.stringValue = "⌘⏎ save    ⎋ cancel"
+        statusLabel.stringValue = "⏎ save    ⌘⏎ newline    ⎋ cancel"
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
         [keyField, scroll, statusLabel].forEach { view.addSubview($0) }
@@ -96,8 +100,8 @@ final class PutViewController: NSViewController {
             scroll.heightAnchor.constraint(equalToConstant: 78), // ~3 lines, then scrolls
 
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            statusLabel.topAnchor.constraint(equalTo: scroll.bottomAnchor, constant: 12),
-            statusLabel.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -14),
+            statusLabel.topAnchor.constraint(greaterThanOrEqualTo: scroll.bottomAnchor, constant: 10),
+            statusLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -14),
         ])
     }
 
@@ -105,7 +109,7 @@ final class PutViewController: NSViewController {
     func prepareForShow() {
         keyField.stringValue = ""
         valueView.string = ""
-        statusLabel.stringValue = "⌘⏎ save    ⎋ cancel"
+        statusLabel.stringValue = "⏎ save    ⌘⏎ newline    ⎋ cancel"
         view.window?.makeFirstResponder(keyField)
     }
 
