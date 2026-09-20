@@ -72,13 +72,25 @@ func main() {
 			continue
 		}
 
-		writeResp(out, handle(db, req))
+		writeResp(out, safeHandle(db, req))
 	}
 
 	// stdin closed (frontend exited) or scan error — shut down.
 	if err := in.Err(); err != nil {
 		utils.LogIt(fmt.Sprintf("stdin scan error: %v", err))
 	}
+}
+
+// safeHandle runs handle but converts a panic on any single request into an
+// error response, so one bad request can't crash the whole sidecar.
+func safeHandle(db *sql.DB, req request) (resp response) {
+	defer func() {
+		if r := recover(); r != nil {
+			utils.LogIt(fmt.Sprintf("recovered from panic on cmd %q: %v", req.Cmd, r))
+			resp = response{ID: req.ID, Error: fmt.Sprintf("internal error: %v", r)}
+		}
+	}()
+	return handle(db, req)
 }
 
 // handle dispatches one request. Adding a new op is a new case here.
