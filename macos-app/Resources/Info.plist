@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Used when packaging Butler as a .app bundle. LSUIElement makes it a resident
+     agent (no Dock icon / menu bar). For `swift run` dev, the same is achieved at
+     runtime via NSApplication.setActivationPolicy(.accessory) in main.swift. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Butler</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.hupr.butler</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+</dict>
+</plist>

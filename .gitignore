@@ -12,3 +12,6 @@ Go-Butler-wails/frontend/dist/*
 */build/*
 # Go sidecar build artifact
 go-rewrite/butler-core
+
+# SwiftPM build artifacts
+macos-app/.build/
