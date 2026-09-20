@@ -1,17 +1,24 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
-
-	"github.com/ncruces/zenity"
 )
 
-const logStore string = "/Users/machupr/note-taking/go-rewrite/app.log"
+// logStore is the log file path. Empty means logging is disabled; call
+// SetLogPath at startup to enable it.
+var logStore string
+
+// SetLogPath points the logger at a file (typically <data dir>/app.log).
+func SetLogPath(path string) {
+	logStore = path
+}
 
 func LogIt(varToLog string) {
+	if logStore == "" {
+		return
+	}
 
 	// Open file in append mode, create if not exists, with write-only permissions
 	f, err := os.OpenFile(logStore, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -29,11 +36,7 @@ func LogIt(varToLog string) {
 
 func Error_happened(err error) bool {
 	if err != nil {
-		if errors.Is(err, zenity.ErrCanceled) {
-			return false // User canceled the operation, not an error
-		}
-		framedError := fmt.Sprintf("‼️ ERROR: %s", err)
-		LogIt(framedError)
+		LogIt(fmt.Sprintf("ERROR: %s", err))
 		return true
 	}
 	return false
