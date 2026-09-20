@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Put overlay (⌘⌥P)
         let pVC = PutViewController(sidecar: sidecar)
         pVC.onDismiss = { [weak self] in self?.putPanel?.orderOut(nil) }
-        putPanel = makePanel(vc: pVC, size: NSSize(width: 640, height: 180))
+        putPanel = makePanel(vc: pVC, size: NSSize(width: 640, height: 240))
         putVC = pVC
 
         fetchHotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_F), modifiers: UInt32(cmdKey | optionKey)) {
