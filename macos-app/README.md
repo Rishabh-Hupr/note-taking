@@ -1,9 +1,14 @@
 # Butler — macOS overlay (frontend)
 
 Native AppKit overlay for the Butler note store. Resident agent (no Dock icon)
-summoned by **⌘⌥Space**: type to search notes, ↑/↓ to move, **Enter** to copy the
-selected note to the clipboard, **Esc** or click-away to dismiss. Data/search is
-handled by the Go `butler-core` sidecar over a newline-JSON stdio protocol.
+with two hotkeys:
+- **⌘⌥F** — search: type to filter notes, ↑/↓ to move, **Enter** to copy the
+  selected note to the clipboard, **Esc**/click-away to dismiss.
+- **⌘⌥P** — put: enter a Key and Value, **Enter** to save, **Esc** to cancel.
+
+Data/search is handled by the Go `butler-core` sidecar over a newline-JSON stdio
+protocol. (Space + one modifier is reserved by macOS — Spotlight, input sources,
+Finder search — so F/P are used instead.)
 
 ## Layout
 - `Sources/Butler/main.swift` — entry point; sets `.accessory` (agent) policy.
@@ -29,11 +34,11 @@ BUTLER_CORE_BIN="$(cd ../go-rewrite && pwd)/butler-core" swift run
 for `../go-rewrite/butler-core` relative to the working directory, then a bundled
 copy (for a packaged `.app`).
 
-Then press **⌘⌥Space** to summon the overlay. Notes live in `~/.butler/` (override
-with `BUTLER_DATA_DIR`).
+Then press **⌘⌥F** (search) or **⌘⌥P** (add note). Notes live in `~/.butler/`
+(override with `BUTLER_DATA_DIR`).
 
 ## Status (MVP)
 - ✅ Summon/dismiss, vibrancy panel, live search, ↑/↓ nav, Enter→copy.
-- ⏳ Put (add-note) flow — protocol + client method exist (`sidecar.put`), UI TBD.
+- ✅ Put (add-note) overlay: Key + Value, Enter saves.
 - ⏳ Packaging into a signed `.app` with `LSUIElement` (Info.plist under `Resources/`).
 - ⏳ User-visible "engine unavailable" state on repeated sidecar failure.
