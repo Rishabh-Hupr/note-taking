@@ -1,7 +1,7 @@
 import AppKit
 
-// A multi-line text view for the value that intercepts ⌘Return (save) and Esc
-// (cancel); plain Return inserts a newline as usual.
+// A multi-line text view for the value: Return saves, ⌘Return inserts a newline,
+// Esc cancels.
 final class ValueTextView: NSTextView {
     var onSave: (() -> Void)?
     var onCancel: (() -> Void)?
@@ -45,8 +45,9 @@ final class ValueTextView: NSTextView {
 }
 
 // PutViewController is the add-note overlay: a single-line Key field and a
-// multi-line Value view. Enter in Key advances to Value; in Value it inserts a
-// newline. ⌘Return saves from either; Esc cancels.
+// multi-line Value view. Return in Key advances to Value; Return in Value saves
+// (⌘Return inserts a newline); Esc cancels. Drafts persist across dismissals and
+// are cleared only after a successful save.
 @MainActor
 final class PutViewController: NSViewController {
     private let sidecar: SidecarClient
@@ -127,13 +128,15 @@ final class PutViewController: NSViewController {
         ])
     }
 
-    // Called by AppDelegate each time the put overlay is summoned.
+    // Called by AppDelegate each time the put overlay is summoned. The draft is
+    // intentionally NOT cleared here — an accidental dismiss keeps your text so
+    // re-summoning restores it. Fields are cleared only after a successful save.
     func prepareForShow() {
-        keyField.stringValue = ""
-        valueView.string = ""
-        valueView.needsDisplay = true // repaint placeholder after clearing
+        statusLabel.textColor = .secondaryLabelColor
         statusLabel.stringValue = "⏎ save    ⌘⏎ newline    ⎋ cancel"
-        view.window?.makeFirstResponder(keyField)
+        valueView.needsDisplay = true
+        // Resume where you left off: value if the key is already filled, else key.
+        view.window?.makeFirstResponder(keyField.stringValue.isEmpty ? keyField : valueView)
     }
 
     private func save() {
@@ -147,8 +150,17 @@ final class PutViewController: NSViewController {
             guard let self else { return }
             do {
                 try await sidecar.put(key: key, value: value)
+                // Success: clear the draft and flash a brief confirmation before
+                // dismissing, so the save visibly registers.
+                keyField.stringValue = ""
+                valueView.string = ""
+                valueView.needsDisplay = true
+                statusLabel.textColor = .systemGreen
+                statusLabel.stringValue = "✓ Saved “\(key)”"
+                try? await Task.sleep(nanoseconds: 750_000_000)
                 onDismiss?()
             } catch {
+                statusLabel.textColor = .systemRed
                 statusLabel.stringValue = "Save failed — try again"
             }
         }
