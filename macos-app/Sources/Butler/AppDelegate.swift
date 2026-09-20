@@ -109,14 +109,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if window === fetchPanel || window === putPanel { window.orderOut(nil) }
     }
 
-    // Center horizontally, upper third vertically, on whichever screen has the mouse.
+    // Center horizontally, upper third vertically, on whichever screen has the
+    // mouse. Uses visibleFrame and clamps so the panel never clips off-screen or
+    // under the menu bar on shorter displays.
     private func position(_ panel: NSPanel) {
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
-        guard let frame = screen?.frame else { return }
+        guard let vf = screen?.visibleFrame else { return }
         let size = panel.frame.size
-        let x = frame.midX - size.width / 2
-        let y = frame.midY + frame.height * 0.12
+        var x = vf.midX - size.width / 2
+        var y = vf.midY + vf.height * 0.12
+        x = min(max(x, vf.minX + 8), vf.maxX - size.width - 8)
+        y = min(max(y, vf.minY + 8), vf.maxY - size.height - 8)
         panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
