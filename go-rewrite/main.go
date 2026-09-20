@@ -4,9 +4,11 @@ import (
 	"Go-Butler/dao"
 	"Go-Butler/utils"
 	"bufio"
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -53,32 +55,44 @@ func main() {
 		fmt.Fprintf(os.Stderr, "cannot open database: %v\n", err)
 		os.Exit(1)
 	}
-	defer notesDB.db.Close()
+	defer notesDB.Close()
 	db := notesDB.DB()
 
-	in := bufio.NewScanner(os.Stdin)
-	in.Buffer(make([]byte, 0, 1024*1024), 1024*1024) // allow long note values
+	// bufio.Reader (not Scanner) so an arbitrarily long request line grows the
+	// buffer instead of erroring out and killing the sidecar.
+	in := bufio.NewReader(os.Stdin)
 	out := bufio.NewWriter(os.Stdout)
 
-	for in.Scan() {
-		line := in.Bytes()
-		if len(line) == 0 {
-			continue
+	for {
+		line, err := in.ReadBytes('\n')
+
+		if line = bytes.TrimSpace(line); len(line) > 0 {
+			var req request
+			if uerr := json.Unmarshal(line, &req); uerr != nil {
+				writeResp(out, response{ID: bestEffortID(line), Error: fmt.Sprintf("bad request: %v", uerr)})
+			} else {
+				writeResp(out, safeHandle(db, req))
+			}
 		}
 
-		var req request
-		if err := json.Unmarshal(line, &req); err != nil {
-			writeResp(out, response{OK: false, Error: fmt.Sprintf("bad request: %v", err)})
-			continue
+		if err != nil {
+			// io.EOF = stdin closed (frontend exited) — normal shutdown.
+			if err != io.EOF {
+				utils.LogIt(fmt.Sprintf("stdin read error: %v", err))
+			}
+			break
 		}
-
-		writeResp(out, safeHandle(db, req))
 	}
+}
 
-	// stdin closed (frontend exited) or scan error — shut down.
-	if err := in.Err(); err != nil {
-		utils.LogIt(fmt.Sprintf("stdin scan error: %v", err))
+// bestEffortID tries to recover the request id from a line that failed to parse
+// as a full request, so the frontend can still correlate the error response.
+func bestEffortID(line []byte) int {
+	var probe struct {
+		ID int `json:"id"`
 	}
+	_ = json.Unmarshal(line, &probe)
+	return probe.ID
 }
 
 // safeHandle runs handle but converts a panic on any single request into an
@@ -140,8 +154,10 @@ func handle(db *sql.DB, req request) response {
 func writeResp(out *bufio.Writer, resp response) {
 	b, err := json.Marshal(resp)
 	if err != nil {
-		utils.LogIt(fmt.Sprintf("marshal error: %v", err))
-		return
+		// Never leave the frontend without a line for this id (it would hang
+		// waiting): emit a minimal hand-built error response instead.
+		utils.LogIt(fmt.Sprintf("marshal error for id %d: %v", resp.ID, err))
+		b = []byte(fmt.Sprintf(`{"id":%d,"error":"response encoding failed"}`, resp.ID))
 	}
 	out.Write(b)
 	out.WriteByte('\n')

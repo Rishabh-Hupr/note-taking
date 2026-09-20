@@ -107,6 +107,32 @@ func TestSafeHandle_NormalPassthrough(t *testing.T) {
 	}
 }
 
+func TestHandle_FetchEmptyListsAll(t *testing.T) {
+	db := testDB(t)
+	handle(db, request{ID: 1, Cmd: "put", Key: "a", Value: "1"})
+	handle(db, request{ID: 2, Cmd: "put", Key: "b", Value: "2"})
+	r := handle(db, request{ID: 3, Cmd: "fetch", Query: ""})
+	if !r.OK || len(r.Notes) != 2 {
+		t.Errorf("empty fetch should list all, got ok=%v notes=%d", r.OK, len(r.Notes))
+	}
+}
+
+func TestBestEffortID(t *testing.T) {
+	cases := []struct {
+		line string
+		want int
+	}{
+		{`{"id":42,"cmd":"put"}`, 42},
+		{`{"cmd":"x"}`, 0},
+		{`not json at all`, 0},
+	}
+	for _, c := range cases {
+		if got := bestEffortID([]byte(c.line)); got != c.want {
+			t.Errorf("bestEffortID(%q)=%d want %d", c.line, got, c.want)
+		}
+	}
+}
+
 func TestWriteResp(t *testing.T) {
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)

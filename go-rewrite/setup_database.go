@@ -18,6 +18,9 @@ type NotesDatabase struct {
 // DB exposes the underlying handle for the dao layer.
 func (n *NotesDatabase) DB() *sql.DB { return n.db }
 
+// Close closes the underlying database handle.
+func (n *NotesDatabase) Close() error { return n.db.Close() }
+
 func NewNotesDatabase(dbPath string) (*NotesDatabase, error) {
 	// Create the directory if it doesn't exist
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
