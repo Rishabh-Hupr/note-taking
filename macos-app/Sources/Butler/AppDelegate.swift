@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var searchVC: SearchViewController?
     private var putVC: PutViewController?
     private var sidecar: SidecarClient!
+    private var statusItem: NSStatusItem?
 
     // Allow construction from the nonisolated top-level (main.swift). All real
     // setup happens in applicationDidFinishLaunching, which stays main-actor.
@@ -17,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu() // enables ⌘C/⌘V/⌘X/⌘A in the text fields (+ ⌘Q)
+        installStatusItem() // a small menu-bar presence while running
 
         sidecar = SidecarClient(binaryURL: resolveSidecarBinary(), dataDir: nil)
         do {
@@ -52,6 +54,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.didResignKeyNotification, object: nil
         )
     }
+
+    // MARK: - Menu bar
+
+    // A minimal menu-bar icon (SF Symbol, template so it adapts to light/dark)
+    // with a click-menu to trigger both overlays and quit. Retained on self so
+    // it isn't deallocated (which would remove it from the bar).
+    private func installStatusItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // A butler-ish figure ready to serve; fall back on older macOS.
+        let icon = NSImage(systemSymbolName: "person.bust.fill", accessibilityDescription: "Butler")
+            ?? NSImage(systemSymbolName: "person.fill", accessibilityDescription: "Butler")
+        icon?.isTemplate = true
+        item.button?.image = icon
+
+        let menu = NSMenu()
+        let search = NSMenuItem(title: "Search      ⌘⌥F", action: #selector(menuSearch), keyEquivalent: "")
+        search.target = self
+        let add = NSMenuItem(title: "Add Note   ⌘⌥P", action: #selector(menuPut), keyEquivalent: "")
+        add.target = self
+        menu.addItem(search)
+        menu.addItem(add)
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit Butler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        item.menu = menu
+
+        statusItem = item
+    }
+
+    @objc private func menuSearch() { summonFetch() }
+    @objc private func menuPut() { summonPut() }
 
     // MARK: - Menu
 
