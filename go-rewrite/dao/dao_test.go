@@ -170,6 +170,40 @@ func TestShowDB_OrdersByUpdatedDesc(t *testing.T) {
 	}
 }
 
+func TestFetchNote_EmptyQueryListsAll(t *testing.T) {
+	db := newTestDB(t)
+	mustPut(t, db, "a", "one")
+	mustPut(t, db, "b", "two")
+
+	for _, q := range []string{"", "   "} {
+		notes, err := FetchNote(db, q)
+		if err != nil {
+			t.Fatalf("empty fetch %q err: %v", q, err)
+		}
+		if len(notes) != 2 {
+			t.Errorf("empty query %q should list all (2), got %d", q, len(notes))
+		}
+	}
+}
+
+func TestFetchLike_EscapesWildcards(t *testing.T) {
+	db := newTestDB(t)
+	mustPut(t, db, "alpha", "beta")
+	mustPut(t, db, "gamma", "delta")
+
+	// No note contains a literal '%' or '_'. With proper escaping these queries
+	// match nothing; without it they'd behave as wildcards and match everything.
+	for _, q := range []string{"%", "_"} {
+		notes, err := fetchLike(db, q)
+		if err != nil {
+			t.Fatalf("fetchLike %q err: %v", q, err)
+		}
+		if len(notes) != 0 {
+			t.Errorf("fetchLike(%q) should match literally (0 results), got %d", q, len(notes))
+		}
+	}
+}
+
 func mustPut(t *testing.T, db *sql.DB, key, value string) {
 	t.Helper()
 	if err := PutNote(db, Note{Key: key, Value: value}); err != nil {
