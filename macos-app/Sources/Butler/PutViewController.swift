@@ -5,6 +5,27 @@ import AppKit
 final class ValueTextView: NSTextView {
     var onSave: (() -> Void)?
     var onCancel: (() -> Void)?
+    var placeholder: String = ""
+
+    // NSTextView has no placeholder, so draw one while empty.
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard string.isEmpty, !placeholder.isEmpty else { return }
+        let attrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: NSColor.placeholderTextColor,
+            .font: font ?? NSFont.systemFont(ofSize: 16),
+        ]
+        let origin = NSPoint(
+            x: textContainerInset.width + (textContainer?.lineFragmentPadding ?? 5),
+            y: textContainerInset.height
+        )
+        placeholder.draw(at: origin, withAttributes: attrs)
+    }
+
+    override func didChangeText() {
+        super.didChangeText()
+        needsDisplay = true // keep the placeholder in sync as text appears/clears
+    }
 
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 36 { // Return
@@ -76,6 +97,7 @@ final class PutViewController: NSViewController {
         valueView.isHorizontallyResizable = false
         valueView.textContainer?.widthTracksTextView = true
         valueView.autoresizingMask = [.width]
+        valueView.placeholder = "Value"
         valueView.onSave = { [weak self] in self?.save() }
         valueView.onCancel = { [weak self] in self?.onDismiss?() }
         scroll.documentView = valueView
@@ -109,6 +131,7 @@ final class PutViewController: NSViewController {
     func prepareForShow() {
         keyField.stringValue = ""
         valueView.string = ""
+        valueView.needsDisplay = true // repaint placeholder after clearing
         statusLabel.stringValue = "⏎ save    ⌘⏎ newline    ⎋ cancel"
         view.window?.makeFirstResponder(keyField)
     }
