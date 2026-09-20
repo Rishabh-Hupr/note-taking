@@ -3,80 +3,135 @@ package main
 import (
 	"Go-Butler/dao"
 	"Go-Butler/utils"
+	"bufio"
 	"database/sql"
+	"encoding/json"
 	"fmt"
-
-	"github.com/ncruces/zenity"
-	"golang.design/x/clipboard"
+	"os"
+	"path/filepath"
 )
 
-const DBPath = "/Users/machupr/note-taking/go-rewrite/db"
-
-func fetch(db *sql.DB) {
-	key, err := zenity.Entry("Enter the key", zenity.Title("Fetching note..."))
-	if utils.Error_happened(err) {
-		return
-	}
-	var output map[string]string
-
-	if key == "" {
-		// checking ShowDB function
-		output = dao.ShowDB(db)
-	} else {
-		// checking FetchNote function
-		output = dao.FetchNote(db, key)
-	}
-	var args []string
-	for key, value := range output {
-		args = append(args, fmt.Sprintf("%s: %s", key, value))
-	}
-
-	var selectedItem string
-	if len(args) > 0 {
-		selectedItem, err = zenity.List("(Hit enter to copy the selected item to clipboard)", args, zenity.Title("Fetched Results"), zenity.OKLabel("📋"), zenity.CancelLabel("Close"))
-		if utils.Error_happened(err) {
-			return
-		}
-
-		// if errors.Is(err, zenity.ErrUnsupported) {
-		// 	// lets call the delete function on the selected item
-		// 	fmt.Println("Delete button clicked")
-		// }
-	}
-	err = clipboard.Init()
-	if err != nil {
-		panic(err)
-	}
-	clipboard.Write(clipboard.FmtText, []byte(selectedItem))
+// request is one JSON line read from stdin.
+type request struct {
+	ID    int    `json:"id"`
+	Cmd   string `json:"cmd"`
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
+	Query string `json:"query,omitempty"`
 }
 
-func note(db *sql.DB) {
-	key, err := zenity.Entry("Enter the key", zenity.Title("Storing note..."))
-	if utils.Error_happened(err) {
-		return
-	}
+// response is one JSON line written to stdout.
+type response struct {
+	ID    int        `json:"id"`
+	OK    bool       `json:"ok"`
+	Notes []dao.Note `json:"notes,omitempty"`
+	Error string     `json:"error,omitempty"`
+}
 
-	value, err := zenity.Entry("Enter the value", zenity.Title("Storing note..."))
-	if utils.Error_happened(err) {
-		return
+// dataDir resolves the Butler data directory: $BUTLER_DATA_DIR, else ~/.butler.
+func dataDir() (string, error) {
+	if d := os.Getenv("BUTLER_DATA_DIR"); d != "" {
+		return d, nil
 	}
-
-	if key == "" || value == "" {
-		zenity.Error("‼️ Please enter something in both the dialogs 😉")
-		return
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
 	}
-	// checking PutNote function
-	dao.PutNote(db, key, value)
-
+	return filepath.Join(home, ".butler"), nil
 }
 
 func main() {
-	db, err := NewNotesDatabase(DBPath)
-	if utils.Error_happened(err) {
-		return
+	dir, err := dataDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot resolve data dir: %v\n", err)
+		os.Exit(1)
+	}
+	utils.SetLogPath(filepath.Join(dir, "app.log"))
+
+	notesDB, err := NewNotesDatabase(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot open database: %v\n", err)
+		os.Exit(1)
+	}
+	defer notesDB.db.Close()
+	db := notesDB.DB()
+
+	in := bufio.NewScanner(os.Stdin)
+	in.Buffer(make([]byte, 0, 1024*1024), 1024*1024) // allow long note values
+	out := bufio.NewWriter(os.Stdout)
+
+	for in.Scan() {
+		line := in.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var req request
+		if err := json.Unmarshal(line, &req); err != nil {
+			writeResp(out, response{OK: false, Error: fmt.Sprintf("bad request: %v", err)})
+			continue
+		}
+
+		writeResp(out, handle(db, req))
 	}
 
-	fetch(db.db)
+	// stdin closed (frontend exited) or scan error — shut down.
+	if err := in.Err(); err != nil {
+		utils.LogIt(fmt.Sprintf("stdin scan error: %v", err))
+	}
+}
 
-	// note(db.db)
+// handle dispatches one request. Adding a new op is a new case here.
+func handle(db *sql.DB, req request) response {
+	resp := response{ID: req.ID}
+
+	switch req.Cmd {
+	case "ping":
+		resp.OK = true
+
+	case "put":
+		if req.Key == "" || req.Value == "" {
+			resp.Error = "put requires both key and value"
+			return resp
+		}
+		if err := dao.PutNote(db, req.Key, req.Value); err != nil {
+			resp.Error = err.Error()
+			return resp
+		}
+		resp.OK = true
+
+	case "fetch":
+		notes, err := dao.FetchNote(db, req.Query)
+		if err != nil {
+			resp.Error = err.Error()
+			return resp
+		}
+		resp.OK = true
+		resp.Notes = notes
+
+	case "list":
+		notes, err := dao.ShowDB(db)
+		if err != nil {
+			resp.Error = err.Error()
+			return resp
+		}
+		resp.OK = true
+		resp.Notes = notes
+
+	default:
+		resp.Error = fmt.Sprintf("unknown cmd: %q", req.Cmd)
+	}
+
+	return resp
+}
+
+func writeResp(out *bufio.Writer, resp response) {
+	b, err := json.Marshal(resp)
+	if err != nil {
+		utils.LogIt(fmt.Sprintf("marshal error: %v", err))
+		return
+	}
+	out.Write(b)
+	out.WriteByte('\n')
+	out.Flush()
 }

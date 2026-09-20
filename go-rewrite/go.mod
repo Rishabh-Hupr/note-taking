@@ -2,17 +2,4 @@ module Go-Butler
 
 go 1.24.3
 
-require golang.design/x/clipboard v0.7.1
-
-require (
-	github.com/akavel/rsrc v0.10.2 // indirect
-	github.com/dchest/jsmin v0.0.0-20220218165748-59f39799265f // indirect
-	github.com/josephspurrier/goversioninfo v1.4.1 // indirect
-	github.com/mattn/go-sqlite3 v1.14.28 // indirect
-	github.com/ncruces/zenity v0.10.14 // indirect
-	github.com/randall77/makefat v0.0.0-20210315173500-7ddd0e42c844 // indirect
-	golang.org/x/exp/shiny v0.0.0-20250606033433-dcc06ee1d476 // indirect
-	golang.org/x/image v0.28.0 // indirect
-	golang.org/x/mobile v0.0.0-20250606033058-a2a15c67f36f // indirect
-	golang.org/x/sys v0.33.0 // indirect
-)
+require github.com/mattn/go-sqlite3 v1.14.28

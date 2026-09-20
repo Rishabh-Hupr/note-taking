@@ -10,3 +10,5 @@ Go-Butler-wails/frontend/dist/*
 */node_modules/*
 */dist/*
 */build/*
+# Go sidecar build artifact
+go-rewrite/butler-core
