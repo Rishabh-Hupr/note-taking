@@ -94,7 +94,7 @@ func handle(db *sql.DB, req request) response {
 			resp.Error = "put requires both key and value"
 			return resp
 		}
-		if err := dao.PutNote(db, req.Key, req.Value); err != nil {
+		if err := dao.PutNote(db, dao.Note{Key: req.Key, Value: req.Value}); err != nil {
 			resp.Error = err.Error()
 			return resp
 		}
