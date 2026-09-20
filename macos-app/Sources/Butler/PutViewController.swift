@@ -5,6 +5,7 @@ import AppKit
 final class ValueTextView: NSTextView {
     var onSave: (() -> Void)?
     var onCancel: (() -> Void)?
+    var onShiftTab: (() -> Void)?
     var placeholder: String = ""
 
     // NSTextView has no placeholder, so draw one while empty.
@@ -38,6 +39,10 @@ final class ValueTextView: NSTextView {
         }
         if event.keyCode == 53 { // Esc
             onCancel?()
+            return
+        }
+        if event.keyCode == 48, event.modifierFlags.contains(.shift) { // Shift+Tab
+            onShiftTab?() // back to the Key field
             return
         }
         super.keyDown(with: event)
@@ -101,6 +106,10 @@ final class PutViewController: NSViewController {
         valueView.placeholder = "Value"
         valueView.onSave = { [weak self] in self?.save() }
         valueView.onCancel = { [weak self] in self?.onDismiss?() }
+        valueView.onShiftTab = { [weak self] in
+            guard let self else { return }
+            self.view.window?.makeFirstResponder(self.keyField)
+        }
         scroll.documentView = valueView
 
         keyField.nextKeyView = valueView
