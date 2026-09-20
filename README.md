@@ -1,123 +1,92 @@
 # Butler
-A lightning-fast, keyboard-powered note utility for macOS — store and retrieve notes or code snippets using simple key-value pairs. An ultra-minimalist knowledge base you summon with a shortcut
 
-# SQLite-Based Note-Taking Application with Full-Text Search
+A lightning-fast, keyboard-powered note utility for macOS — store and retrieve
+notes or code snippets as simple key→value pairs, summoned from anywhere with a
+global hotkey. A minimalist, Spotlight-style knowledge base.
 
-A Python-based note management system that stores notes in a SQLite database with full-text search capabilities. The application provides efficient key-value storage with advanced search functionality, allowing users to find notes through keyword searches rather than exact key matches.
+- **⌘⌥F** — search: type to filter (matches keys **and** values), ↑/↓ to move,
+  **Enter** to copy the selected note to the clipboard, **Esc**/click-away to dismiss.
+- **⌘⌥P** — add a note: type a **Key** and **Value**, **Enter** to save
+  (**⌘Return** for a newline in the value), **Esc** to cancel.
 
-The system uses SQLite's FTS5 (Full-Text Search) extension to enable fast and efficient text searches across notes. It implements a robust database schema with triggers to maintain search indexes automatically and supports both exact key matches and partial text searches. The application is designed for performance and scalability, making it suitable for managing large collections of notes.
+Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`).
 
-## Repository Structure
+## Architecture
+
+Butler is two processes: a native Swift overlay and a Go data sidecar.
+
+```
+┌──────────────────────────┐   newline-delimited JSON    ┌───────────────────────┐
+│  macos-app/ (Swift/AppKit)│  over stdin/stdout (pipes)  │ go-rewrite/ (Go)      │
+│  • resident agent (hotkey)│ ───── put/fetch/list ─────▶ │ • SQLite + FTS5 store │
+│  • borderless NSPanel     │ ◀──── {ok, notes, …} ────── │ • ~/.butler/notes.db  │
+│  • NSVisualEffectView blur│                             │ • resident sidecar    │
+└──────────────────────────┘                             └───────────────────────┘
+```
+
+The Swift app launches the Go binary (`butler-core`) once at startup and talks to
+it over pipes — the sidecar stays resident with the DB open, so summoning and
+searching are instant (no per-keystroke process spawn). Search uses SQLite's FTS5
+full-text index over both key and value.
+
+## Repository layout
+
 ```
 .
-├── __init__.py              # Python package initialization
-├── adder_input.py          # Handles user input for adding new notes
-├── fetcher.py              # Implements note retrieval and search functionality
-├── noter.py                # Contains AddNote class for note creation
-├── notes.py                # Core database functionality and schema management
-└── utils.py                # Utility functions for logging and string manipulation
+├── launch-butler.sh  # build both halves and launch the app (backgrounded)
+├── go-rewrite/     # Go sidecar: SQLite/FTS5 store + stdio JSON protocol
+│   ├── main.go         # stdio loop (ping/put/fetch/list)
+│   ├── dao/            # Note model + queries (fetch, put)
+│   └── setup_database.go
+└── macos-app/      # Swift/AppKit overlay (SwiftPM package)
+    └── Sources/Butler/ # AppDelegate, panels, SidecarClient, hotkey, view controllers
 ```
 
-## Usage Instructions
-### Prerequisites
-- Python 3.6 or higher
-- SQLite3
-- Required Python packages:
-  - `sqlite3` (built-in)
-  - `json` (built-in)
-  - `contextlib` (built-in)
+Earlier implementations live on their own branches: **`python`** (the original
+Python CLI) and **`failedWailsApproach`** (an abandoned Wails/React attempt).
 
-### Installation
-1. Clone the repository:
+## Prerequisites
+
+- macOS 13+ (Apple Silicon or Intel)
+- **Xcode Command Line Tools** (`xcode-select --install`) — provides Swift and cgo
+- **Go** (`brew install go`, or `mise use -g go@latest`)
+- Network access on first build to fetch `mattn/go-sqlite3` (the script uses
+  `GOPROXY=direct`, which pulls from GitHub directly if the public Go proxy is blocked)
+
+## Quick start
+
 ```bash
-git clone <repository-url>
-cd <repository-name>
+git clone https://github.com/Rishabh-Hupr/note-taking.git
+cd note-taking
+./launch-butler.sh
 ```
 
-2. Ensure SQLite is installed on your system:
+`launch-butler.sh` builds the Go sidecar and the Swift overlay (release), then
+launches the app **in the background** and frees your terminal. It prints the
+PID and how to stop it (`kill <PID>` / `pkill`). Re-running is safe — it stops
+any running instance first, so you always get one fresh build. Then press
+**⌘⌥F** or **⌘⌥P**.
+
+## Manual build
+
 ```bash
-# For Ubuntu/Debian
-sudo apt-get install sqlite3
+# Go sidecar
+cd go-rewrite
+CGO_ENABLED=1 GOPROXY=direct GOSUMDB=off go build -tags sqlite_fts5 -o butler-core .
 
-# For macOS
-brew install sqlite3
-
-# For Windows
-# Download SQLite from https://www.sqlite.org/download.html
+# Swift overlay (run from source)
+cd ../macos-app
+BUTLER_CORE_BIN="$(cd ../go-rewrite && pwd)/butler-core" swift run
 ```
 
-### Quick Start
-1. Create a config.py file with an absolute path that you have access to with below syntax
-```
-DB_PATH="absolute_path/db"
-LOG_PATH="absolute_path"
-```
-2. Add a new note:
+Run the backend tests with the FTS5 build tag:
+
 ```bash
-python adder_input.py "key////value"
+cd go-rewrite && go test -tags sqlite_fts5 ./...
 ```
 
-3. Search for notes:
-```bash
-python fetcher.py "search_term"
-```
+## Status
 
-4. Show all notes:
-```bash
-python fetcher.py
-```
-
-### More Detailed Examples
-1. Adding a note with a complex value:
-```bash
-python adder_input.py "meeting_notes////Discussion about project timeline on 2024-01-20"
-```
-
-2. Searching notes with partial matches:
-```bash
-python fetcher.py "meeting"
-# Returns all notes containing "meeting" in their keys
-```
-
-### Troubleshooting
-Common issues and solutions:
-
-1. Database Connection Error
-```
-Error: unable to open database file
-```
-Solution:
-- Ensure the database directory exists
-- Check file permissions
-- Verify the database path in `notes.py`
-
-2. Search Not Working
-```
-Error: no such table: notes_fts
-```
-Solution:
-- Rebuild the FTS table using the commented code in `noter.py`
-```python
-notes_obj = NotesDatabase()
-notes_obj.rebuild_fts_table()
-```
-
-## Data Flow
-The application follows a simple data flow where notes are stored in a SQLite database with full-text search capabilities. Notes are added through the adder component and retrieved through the fetcher component.
-
-```ascii
-[User Input] -> [adder_input.py] -> [noter.py] -> [SQLite DB]
-                                                      ^
-                                                      |
-[Search Results] <- [fetcher.py] <- [Full-Text Search]
-```
-
-Key component interactions:
-1. `adder_input.py` splits input into key-value pairs
-2. `noter.py` handles database insertions with automatic FTS indexing
-3. `notes.py` manages database schema and connections
-4. `fetcher.py` performs searches using SQLite's FTS5 capabilities
-5. Triggers automatically maintain FTS indexes on insert/update/delete
-6. All operations are logged through `utils.py`
-7. Database uses WAL mode for better concurrent access
-8. FTS5 virtual table enables prefix-based searching
+MVP: search, copy, and add-note all work end to end. Not yet packaged as a
+double-click `.app` — it currently runs from source via `run.sh`. Planned next:
+a signed `.app` bundle with a login item (auto-resident), plus a delete action.
