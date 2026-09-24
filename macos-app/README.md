@@ -19,20 +19,20 @@ Finder search — so F/P are used instead.)
 - `SidecarClient.swift` — runs `butler-core`, matches requests↔responses, basic watchdog.
 - `Models.swift` — `Note` / request / response, mirroring the Go wire contract.
 
-## Build the sidecar first
+## Easiest: from the repo root
 ```bash
-cd ../go-rewrite
-CGO_ENABLED=1 GOPROXY=direct GOSUMDB=off go build -tags sqlite_fts5 -o butler-core .
+./launch-butler.sh
 ```
+Builds both artifacts into `build/` and launches the app.
 
-## Run (dev)
+## Run (dev, from source)
 ```bash
 cd macos-app
 BUTLER_CORE_BIN="$(cd ../go-rewrite && pwd)/butler-core" swift run
 ```
-`BUTLER_CORE_BIN` tells the app where the sidecar binary is. Without it, it looks
-for `../go-rewrite/butler-core` relative to the working directory, then a bundled
-copy (for a packaged `.app`).
+`BUTLER_CORE_BIN` tells the app where the sidecar binary is. Resolution order:
+that env var → a bundled copy (packaged `.app`) → a `butler-core` sibling next to
+the app binary (the `build/` layout) → `../go-rewrite/butler-core` (dev fallback).
 
 Then press **⌘⌥F** (search) or **⌘⌥P** (add note). Notes live in `~/.butler/`
 (override with `BUTLER_DATA_DIR`).

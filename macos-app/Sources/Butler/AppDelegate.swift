@@ -167,6 +167,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let bundled = Bundle.main.url(forResource: "butler-core", withExtension: nil) {
             return bundled
         }
+        // Sibling of this executable — both artifacts are delivered into build/.
+        if let exeDir = Bundle.main.executableURL?.deletingLastPathComponent() {
+            let sibling = exeDir.appendingPathComponent("butler-core")
+            if FileManager.default.fileExists(atPath: sibling.path) {
+                return sibling
+            }
+        }
+        // Dev fallback: a go-rewrite build next to the working directory.
         let cwd = FileManager.default.currentDirectoryPath
         return URL(fileURLWithPath: cwd)
             .appendingPathComponent("../go-rewrite/butler-core")

@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Butler — build the Go sidecar + Swift overlay, then launch the app in the
-# background. Safe to re-run: it stops any running instance first, so you always
-# end up with exactly one fresh build running.
+# Butler — build the Go sidecar + Swift overlay into build/, then launch the app
+# in the background. Safe to re-run: it stops any running instance first, so you
+# always end up with exactly one fresh build running.
 # Usage: ./launch-butler.sh   (from a checkout of this repo)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CORE_DIR="$ROOT/go-rewrite"
 APP_DIR="$ROOT/macos-app"
-CORE_BIN="$CORE_DIR/butler-core"
-APP_BIN="$APP_DIR/.build/release/Butler"
+BUILD_DIR="$ROOT/build"          # both built artifacts are delivered here
+CORE_BIN="$BUILD_DIR/butler-core"
+APP_BIN="$BUILD_DIR/Butler"
 DATA_DIR="${BUTLER_DATA_DIR:-$HOME/.butler}"
 
 # --- prerequisites -----------------------------------------------------------
@@ -22,19 +23,22 @@ command -v swift >/dev/null 2>&1 || {
     exit 1
 }
 
-# --- build the Go sidecar ----------------------------------------------------
+mkdir -p "$BUILD_DIR"
+
+# --- build the Go sidecar → build/butler-core --------------------------------
 # GOPROXY=direct fetches modules straight from source (mattn/go-sqlite3), needed
 # where the public Go proxy is blocked. cgo + the sqlite_fts5 tag are mandatory.
-echo "==> Building Go sidecar (butler-core)…"
+echo "==> Building Go sidecar → build/butler-core"
 (
     cd "$CORE_DIR"
     CGO_ENABLED=1 GOPROXY="${GOPROXY:-direct}" GOSUMDB="${GOSUMDB:-off}" \
-        go build -tags sqlite_fts5 -o butler-core .
+        go build -tags sqlite_fts5 -o "$CORE_BIN" .
 )
 
-# --- build the Swift overlay -------------------------------------------------
-echo "==> Building Swift overlay…"
+# --- build the Swift overlay → build/Butler ----------------------------------
+echo "==> Building Swift overlay → build/Butler"
 ( cd "$APP_DIR" && swift build -c release )
+cp "$APP_DIR/.build/release/Butler" "$APP_BIN"
 
 # --- stop any existing instance (idempotent: converge to one fresh instance) --
 if pgrep -f "$APP_BIN" >/dev/null 2>&1; then
@@ -57,5 +61,6 @@ cat <<EOF
 ✔ Butler is running in the background (PID $APP_PID). Your terminal is free.
   • Summon:  ⌘⌥F to search   ·   ⌘⌥P to add a note
   • Stop:    kill $APP_PID        (or: pkill -f "$APP_BIN")
+  • Build:   $BUILD_DIR (butler-core + Butler)
   • Logs:    $DATA_DIR/butler-ui.log   ·   data: $DATA_DIR
 EOF

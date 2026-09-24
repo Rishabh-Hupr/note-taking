@@ -10,8 +10,9 @@ Go-Butler-wails/frontend/dist/*
 */node_modules/*
 */dist/*
 */build/*
-# Go sidecar build artifact
-go-rewrite/butler-core
+# Built artifacts (Go sidecar + Swift overlay) delivered here by launch-butler.sh
+/build/
 
 # SwiftPM build artifacts
 macos-app/.build/
+.vscode*

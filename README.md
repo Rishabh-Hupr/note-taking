@@ -69,14 +69,22 @@ any running instance first, so you always get one fresh build. Then press
 
 ## Manual build
 
-```bash
-# Go sidecar
-cd go-rewrite
-CGO_ENABLED=1 GOPROXY=direct GOSUMDB=off go build -tags sqlite_fts5 -o butler-core .
+Both artifacts are delivered into `build/` at the repo root (git-ignored), never
+into the source dirs.
 
-# Swift overlay (run from source)
-cd ../macos-app
-BUTLER_CORE_BIN="$(cd ../go-rewrite && pwd)/butler-core" swift run
+```bash
+mkdir -p build
+
+# Go sidecar → build/butler-core
+(cd go-rewrite && CGO_ENABLED=1 GOPROXY=direct GOSUMDB=off \
+  go build -tags sqlite_fts5 -o ../build/butler-core .)
+
+# Swift overlay → build/Butler
+(cd macos-app && swift build -c release)
+cp macos-app/.build/release/Butler build/Butler
+
+# run (the app finds build/butler-core as its sibling)
+./build/Butler
 ```
 
 Run the backend tests with the FTS5 build tag:
