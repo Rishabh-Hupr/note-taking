@@ -1,8 +1,9 @@
 //go:build sqlite_fts5
 
-package dao
+package operations
 
 import (
+	"Go-Butler/dao"
 	"database/sql"
 	"path/filepath"
 	"strings"
@@ -49,18 +50,18 @@ func newTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func findNote(notes []Note, key string) (Note, bool) {
+func findNote(notes []dao.Note, key string) (dao.Note, bool) {
 	for _, n := range notes {
 		if n.Key == key {
 			return n, true
 		}
 	}
-	return Note{}, false
+	return dao.Note{}, false
 }
 
 func TestPutNote_InsertSetsEqualTimestamps(t *testing.T) {
 	db := newTestDB(t)
-	if err := PutNote(db, Note{Key: "wifi", Value: "hunter2"}); err != nil {
+	if err := PutNote(db, dao.Note{Key: "wifi", Value: "hunter2"}); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	notes, err := ShowDB(db)
@@ -84,7 +85,7 @@ func TestPutNote_InsertSetsEqualTimestamps(t *testing.T) {
 
 func TestPutNote_UpsertPreservesCreatedBumpsUpdated(t *testing.T) {
 	db := newTestDB(t)
-	if err := PutNote(db, Note{Key: "k1", Value: "first"}); err != nil {
+	if err := PutNote(db, dao.Note{Key: "k1", Value: "first"}); err != nil {
 		t.Fatal(err)
 	}
 	// Pin timestamps to a known past value so the assertion doesn't depend on a
@@ -92,7 +93,7 @@ func TestPutNote_UpsertPreservesCreatedBumpsUpdated(t *testing.T) {
 	if _, err := db.Exec(`UPDATE notes SET created_at='2000-01-01 00:00:00', updated_at='2000-01-01 00:00:00' WHERE key='k1'`); err != nil {
 		t.Fatal(err)
 	}
-	if err := PutNote(db, Note{Key: "k1", Value: "second"}); err != nil {
+	if err := PutNote(db, dao.Note{Key: "k1", Value: "second"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -206,12 +207,12 @@ func TestFetchLike_EscapesWildcards(t *testing.T) {
 
 func mustPut(t *testing.T, db *sql.DB, key, value string) {
 	t.Helper()
-	if err := PutNote(db, Note{Key: key, Value: value}); err != nil {
+	if err := PutNote(db, dao.Note{Key: key, Value: value}); err != nil {
 		t.Fatalf("put %q: %v", key, err)
 	}
 }
 
-func mustShow(t *testing.T, db *sql.DB) []Note {
+func mustShow(t *testing.T, db *sql.DB) []dao.Note {
 	t.Helper()
 	notes, err := ShowDB(db)
 	if err != nil {
