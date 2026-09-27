@@ -1,6 +1,6 @@
 import AppKit
 
-// A multi-line text view for the value: Return saves, ⌘Return inserts a newline,
+// A multi-line text view for the value: Return inserts a newline, ⌘Return saves,
 // Esc cancels.
 final class ValueTextView: NSTextView {
     var onSave: (() -> Void)?
@@ -31,9 +31,9 @@ final class ValueTextView: NSTextView {
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 36 { // Return
             if event.modifierFlags.contains(.command) {
-                insertNewline(nil) // ⌘Return → newline
+                onSave?() // ⌘Return → save
             } else {
-                onSave?() // Return → save
+                insertNewline(nil) // Return → newline
             }
             return
         }
@@ -117,7 +117,7 @@ final class PutViewController: NSViewController {
 
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.textColor = .secondaryLabelColor
-        statusLabel.stringValue = "⏎ save    ⌘⏎ newline    ⎋ cancel"
+        statusLabel.stringValue = "⌘⏎ save    ⏎ newline    ⎋ cancel"
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
         [keyField, scroll, statusLabel].forEach { view.addSubview($0) }
@@ -142,7 +142,7 @@ final class PutViewController: NSViewController {
     // re-summoning restores it. Fields are cleared only after a successful save.
     func prepareForShow() {
         statusLabel.textColor = .secondaryLabelColor
-        statusLabel.stringValue = "⏎ save    ⌘⏎ newline    ⎋ cancel"
+        statusLabel.stringValue = "⌘⏎ save    ⏎ newline    ⎋ cancel"
         valueView.needsDisplay = true
         // Resume where you left off: value if the key is already filled, else key.
         view.window?.makeFirstResponder(keyField.stringValue.isEmpty ? keyField : valueView)

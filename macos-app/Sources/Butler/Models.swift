@@ -2,6 +2,7 @@ import Foundation
 
 // Note mirrors the Go dao.Note wire contract exactly (JSON keys must match).
 struct Note: Codable, Equatable {
+    let id: Int
     let key: String
     let value: String
     let createdAt: String
@@ -9,7 +10,7 @@ struct Note: Codable, Equatable {
     let rank: Double
 
     enum CodingKeys: String, CodingKey {
-        case key, value, rank
+        case id, key, value, rank
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
@@ -23,6 +24,12 @@ struct SidecarRequest: Encodable {
     var key: String?
     var value: String?
     var query: String?
+    var noteID: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, cmd, key, value, query
+        case noteID = "note_id"
+    }
 }
 
 // SidecarResponse is one line read back from butler-core.

@@ -39,6 +39,17 @@ func handler(db *sql.DB, req Request) Response {
 		}
 		resp.OK = true
 
+	case "delete":
+		if req.NoteID <= 0 {
+			resp.Error = "delete requires a positive note_id"
+			return resp
+		}
+		if err := operations.DeleteNote(db, req.NoteID); err != nil {
+			resp.Error = err.Error()
+			return resp
+		}
+		resp.OK = true
+
 	case "fetch":
 		notes, err := operations.FetchNote(db, req.Query)
 		if err != nil {

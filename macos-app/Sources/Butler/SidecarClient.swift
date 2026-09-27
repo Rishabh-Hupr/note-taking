@@ -50,6 +50,23 @@ final class SidecarClient: @unchecked Sendable {
         proc.standardInput = inPipe
         proc.standardOutput = outPipe
 
+        // Route the sidecar's stderr to app.log so its panics/diagnostics don't
+        // leak into butler-ui.log. stdout stays the JSON protocol channel.
+        //
+        // Open with O_APPEND: the Go sidecar appends to this same app.log on its
+        // own O_APPEND fd, so every write must land at the true end of file. A
+        // plain write fd (fixed offset) would overwrite whatever the sidecar
+        // logged since launch the first time it wrote to stderr — corrupting the
+        // log exactly when a panic makes it matter. closeOnDealloc frees the fd
+        // when the Process is replaced on a watchdog restart.
+        let logPath = (butlerDataDir() as NSString).appendingPathComponent("app.log")
+        let errFD = open(logPath, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        if errFD >= 0 {
+            proc.standardError = FileHandle(fileDescriptor: errFD, closeOnDealloc: true)
+        } else {
+            uiLog("warning: could not open \(logPath) for sidecar stderr; it will fall back to the UI log")
+        }
+
         outPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
@@ -131,29 +148,45 @@ final class SidecarClient: @unchecked Sendable {
         let request = makeRequest(id)
         let data = try JSONEncoder().encode(request)
 
-        return try await withCheckedThrowingContinuation { cont in
-            guard let handle else {
-                cont.resume(throwing: SidecarError.notRunning)
-                return
-            }
-            registerPending(id, cont)
+        var detail = ""
+        if let k = request.key { detail += " key=\(k)" }
+        if let q = request.query { detail += " query=\(q)" }
+        if let nid = request.noteID { detail += " note_id=\(nid)" }
+        uiLog("→ req id=\(id) cmd=\(request.cmd)\(detail)")
 
-            // Safety net: never let a caller hang if a response is lost — a crash,
-            // a garbled/undecodable frame, or a register/terminate race.
-            writeQueue.asyncAfter(deadline: .now() + requestTimeout) { [weak self] in
-                self?.failPending(id, SidecarError.timeout)
-            }
+        do {
+            let resp: SidecarResponse = try await withCheckedThrowingContinuation { cont in
+                guard let handle else {
+                    cont.resume(throwing: SidecarError.notRunning)
+                    return
+                }
+                registerPending(id, cont)
 
-            writeQueue.async { [weak self] in
-                do {
-                    // Throwing API: writing to a dead pipe fails the request
-                    // instead of raising an uncatchable ObjC exception.
-                    try handle.write(contentsOf: data)
-                    try handle.write(contentsOf: Data([0x0A]))
-                } catch {
-                    self?.failPending(id, SidecarError.notRunning)
+                // Safety net: never let a caller hang if a response is lost — a crash,
+                // a garbled/undecodable frame, or a register/terminate race.
+                writeQueue.asyncAfter(deadline: .now() + requestTimeout) { [weak self] in
+                    self?.failPending(id, SidecarError.timeout)
+                }
+
+                writeQueue.async { [weak self] in
+                    do {
+                        // Throwing API: writing to a dead pipe fails the request
+                        // instead of raising an uncatchable ObjC exception.
+                        try handle.write(contentsOf: data)
+                        try handle.write(contentsOf: Data([0x0A]))
+                    } catch {
+                        self?.failPending(id, SidecarError.notRunning)
+                    }
                 }
             }
+            var respDetail = ""
+            if let e = resp.error { respDetail += " error=\(e)" }
+            if let n = resp.notes { respDetail += " notes=\(n.count)" }
+            uiLog("← resp id=\(id) ok=\(resp.ok)\(respDetail)")
+            return resp
+        } catch {
+            uiLog("✗ req id=\(id) cmd=\(request.cmd) failed: \(error)")
+            throw error
         }
     }
 
@@ -178,6 +211,11 @@ final class SidecarClient: @unchecked Sendable {
 
     func put(key: String, value: String) async throws {
         let resp = try await send { SidecarRequest(id: $0, cmd: "put", key: key, value: value) }
+        if let err = resp.error { throw SidecarError.sidecar(err) }
+    }
+
+    func delete(id: Int) async throws {
+        let resp = try await send { SidecarRequest(id: $0, cmd: "delete", noteID: id) }
         if let err = resp.error { throw SidecarError.sidecar(err) }
     }
 
