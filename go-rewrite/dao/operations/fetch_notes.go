@@ -14,7 +14,7 @@ func ShowDB(db *sql.DB) ([]dao.Note, error) {
 	helpers.LogIt("Printing database...")
 
 	rows, err := db.Query(`
-		SELECT key, value, created_at, updated_at FROM notes
+		SELECT id, key, value, created_at, updated_at FROM notes
 		ORDER BY updated_at DESC
 	`)
 	if err != nil {
@@ -26,7 +26,7 @@ func ShowDB(db *sql.DB) ([]dao.Note, error) {
 	var notes []dao.Note
 	for rows.Next() {
 		var n dao.Note
-		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.Id, &n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			helpers.Error_happened(err)
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func ftsSearch(db *sql.DB, query string) ([]dao.Note, error) {
 	match := fmt.Sprintf(`"%s"*`, strings.ReplaceAll(query, `"`, `""`))
 
 	rows, err := db.Query(`
-		SELECT notes.key, notes.value, notes.created_at, notes.updated_at, notes_fts.rank
+		SELECT notes.id, notes.key, notes.value, notes.created_at, notes.updated_at, notes_fts.rank
 		FROM notes
 		JOIN notes_fts ON notes.id = notes_fts.rowid
 		WHERE notes_fts MATCH ?
@@ -82,7 +82,7 @@ func ftsSearch(db *sql.DB, query string) ([]dao.Note, error) {
 	var notes []dao.Note
 	for rows.Next() {
 		var n dao.Note
-		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt, &n.Rank); err != nil {
+		if err := rows.Scan(&n.Id, &n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt, &n.Rank); err != nil {
 			return nil, err
 		}
 		notes = append(notes, n)
@@ -96,7 +96,7 @@ func fetchLike(db *sql.DB, query string) ([]dao.Note, error) {
 	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(query)
 	like := "%" + esc + "%"
 	rows, err := db.Query(`
-		SELECT key, value, created_at, updated_at FROM notes
+		SELECT id, key, value, created_at, updated_at FROM notes
 		WHERE key LIKE ? ESCAPE '\' OR value LIKE ? ESCAPE '\'
 		ORDER BY updated_at DESC
 	`, like, like)
@@ -109,7 +109,7 @@ func fetchLike(db *sql.DB, query string) ([]dao.Note, error) {
 	var notes []dao.Note
 	for rows.Next() {
 		var n dao.Note
-		if err := rows.Scan(&n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.Id, &n.Key, &n.Value, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			helpers.Error_happened(err)
 			return nil, err
 		}

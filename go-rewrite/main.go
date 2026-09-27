@@ -5,6 +5,7 @@ import (
 	"Go-Butler/processor"
 	"bufio"
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,13 +50,7 @@ func main() {
 		line, err := in.ReadBytes('\n')
 
 		if line = bytes.TrimSpace(line); len(line) > 0 {
-			var req processor.Request
-			if uerr := json.Unmarshal(line, &req); uerr != nil {
-				helpers.LogIt(fmt.Sprintf("bad request: %v, for request: %s", uerr, line))
-				processor.WriteResponse(out, processor.Response{ID: bestEffortID(line), Error: fmt.Sprintf("bad request: %v", uerr)})
-			} else {
-				processor.WriteResponse(out, processor.SafeHandler(db, req))
-			}
+			serveLine(db, out, line)
 		}
 
 		if err != nil {
@@ -66,6 +61,28 @@ func main() {
 			break
 		}
 	}
+}
+
+// serveLine handles exactly one request line. Its deferred recover is the last
+// line of defense: SafeHandler already guards the handler, but WriteResponse and
+// JSON decoding run here too, so a panic anywhere in the cycle is caught, logged
+// with a timestamp and the offending request
+func serveLine(db *sql.DB, out *bufio.Writer, line []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			helpers.LogIt(fmt.Sprintf("PANIC handling request %q: %v", line, r))
+			// Best-effort reply so the frontend fails fast instead of timing out.
+			processor.WriteResponse(out, processor.Response{ID: bestEffortID(line), Error: fmt.Sprintf("internal error: %v", r)})
+		}
+	}()
+
+	var req processor.Request
+	if uerr := json.Unmarshal(line, &req); uerr != nil {
+		helpers.LogIt(fmt.Sprintf("bad request: %v, for request: %s", uerr, line))
+		processor.WriteResponse(out, processor.Response{ID: bestEffortID(line), Error: fmt.Sprintf("bad request: %v", uerr)})
+		return
+	}
+	processor.WriteResponse(out, processor.SafeHandler(db, req))
 }
 
 // bestEffortID tries to recover the request id from a line that failed to parse

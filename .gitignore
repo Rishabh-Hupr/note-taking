@@ -12,6 +12,7 @@ Go-Butler-wails/frontend/dist/*
 */build/*
 # Built artifacts (Go sidecar + Swift overlay) delivered here by launch-butler.sh
 /build/
+test-build/
 
 # SwiftPM build artifacts
 macos-app/.build/

@@ -8,6 +8,7 @@ package dao
 // (e.g. "2026-09-20T15:49:45Z") when scanned into a string. We keep the string
 // form as-is for the wire; the frontend can parse it if it needs a date type.
 type Note struct {
+	Id        int     `json:"id"`
 	Key       string  `json:"key"`
 	Value     string  `json:"value"`
 	CreatedAt string  `json:"created_at"`
