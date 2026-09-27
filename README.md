@@ -5,9 +5,10 @@ notes or code snippets as simple key→value pairs, summoned from anywhere with 
 global hotkey. A minimalist, Spotlight-style knowledge base.
 
 - **⌘⌥F** — search: type to filter (matches keys **and** values), ↑/↓ to move,
-  **Enter** to copy the selected note to the clipboard, **Esc**/click-away to dismiss.
-- **⌘⌥P** — add a note: type a **Key** and **Value**, **Enter** to save
-  (**⌘Return** for a newline in the value), **Esc** to cancel.
+  **Enter** to copy the selected note to the clipboard, **⌘D** to delete it,
+  **Esc**/click-away to dismiss. The selected note expands to show its full text.
+- **⌘⌥P** — add a note: type a **Key** and **Value**, **⌘Return** to save
+  (**Enter** inserts a newline in the value), **Esc** to cancel.
 
 Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`).
 
@@ -35,8 +36,8 @@ full-text index over both key and value.
 .
 ├── launch-butler.sh  # build both halves and launch the app (backgrounded)
 ├── go-rewrite/     # Go sidecar: SQLite/FTS5 store + stdio JSON protocol
-│   ├── main.go         # stdio loop (ping/put/fetch/list)
-│   ├── dao/            # Note model + queries (fetch, put)
+│   ├── main.go         # stdio loop (ping/put/fetch/delete/list)
+│   ├── dao/            # Note model + queries (fetch, put, delete)
 │   └── setup_database.go
 └── macos-app/      # Swift/AppKit overlay (SwiftPM package)
     └── Sources/Butler/ # AppDelegate, panels, SidecarClient, hotkey, view controllers
@@ -95,6 +96,6 @@ cd go-rewrite && go test -tags sqlite_fts5 ./...
 
 ## Status
 
-MVP: search, copy, and add-note all work end to end. Not yet packaged as a
-double-click `.app` — it currently runs from source via `run.sh`. Planned next:
-a signed `.app` bundle with a login item (auto-resident), plus a delete action.
+MVP: search, copy, add-note, and delete all work end to end. Not yet packaged as
+a double-click `.app` — it currently runs from source via `launch-butler.sh`.
+Planned next: a signed `.app` bundle with a login item (auto-resident).

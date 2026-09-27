@@ -40,10 +40,26 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 
 ### Phase 4 — Search + Put
 - Search: live fetch, ↑/↓ nav, **Enter** copies to `NSPasteboard`, Esc/click-away.
-- Put overlay: Key + multi-line Value (placeholder, Return saves, ⌘Return newline,
+- Put overlay: Key + multi-line Value (placeholder, **Return newline, ⌘Return save**,
   Shift+Tab back to key), drafts preserved on dismiss, green "✓ Saved" confirmation.
 
+### Phase 5 — Delete + note-view polish
+- **Delete the selected note with ⌘D** in search. Chosen over ⌘⌫ (which would
+  clobber the search field's text). Backend `delete` cmd + `DeleteNote(db, id)`
+  keyed on the note **`id`** (stable primary key — `id` is now on the wire and in
+  every SELECT/scan), plus `SidecarClient.delete(id:)`. Deletes immediately and
+  refreshes the list (no confirm). Unit tests incl. FTS-index sync + no-op delete.
+- **Full-content pop-out:** the selected note's row expands with a quick fade to
+  show its whole multi-line value; ↑/↓ navigation still works while expanded.
+- **Shortcut hint row** in the search overlay (↑↓ navigate · ⏎ copy · ⌘D delete · ⎋ close).
+- Notes: deviated from the original plan — delete by **id not key**, shortcut
+  **⌘D not ⌘⌫**, and no confirm/undo (fast launcher-style UX).
+
 ### Extras (beyond the original plan)
+- Sidecar stderr → `app.log`; timestamped UI request/response logging to `butler-ui.log`.
+- Per-request panic recovery (`serveLine`) so a bad request can't crash the sidecar.
+- `test-butler.sh --go/--be` rebuilds only the Go sidecar and hot-swaps it into the
+  running app (watchdog respawn); persistent Swift module cache for fast rebuilds.
 - Edit-menu so ⌘C/⌘V/⌘X/⌘A + ⌘Q work in the overlays.
 - Overlay clamped to `visibleFrame` (no off-screen clip).
 - Minimal **menu-bar status item** (butler figure) with Search / Add Note / Quit.
@@ -53,14 +69,6 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 ---
 
 ## 🔜 Next steps
-
-### Delete action on notes
-- Backend: add a `delete` cmd + `dao.DeleteNote(db, key) error`
-  (`DELETE FROM notes WHERE key = ?`; the AFTER-DELETE trigger keeps FTS in sync).
-  Add `SidecarClient.delete(key:)`.
-- UI: in the search results, a key on the selected row (e.g. **⌘⌫**) deletes it,
-  then refreshes the list. Consider a brief confirm or undo to prevent accidents.
-- Protocol is already extensible, so this is a one-case + one-function addition.
 
 ### Configurable hotkeys
 - Let users rebind the search / put combos instead of hard-coded ⌘⌥F / ⌘⌥P.
@@ -78,7 +86,7 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   short "drop from the notch" reveal animation.
 - Gracefully fall back to the current upper-third centering on non-notched displays.
 
-### Phase 5 — Packaging (make it a real app)
+### Phase 6 — Packaging (make it a real app)
 - Build a signed `Butler.app`: `Info.plist` with `LSUIElement`, bundle `butler-core`
   into `Contents/Resources/` (Xcode Run Script or a package step), resolve it via
   `Bundle.main` at runtime.

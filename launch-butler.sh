@@ -10,8 +10,13 @@ CORE_DIR="$ROOT/go-rewrite"
 APP_DIR="$ROOT/macos-app"
 BUILD_DIR="$ROOT/build"          # both built artifacts are delivered here
 CORE_BIN="$BUILD_DIR/butler-core"
+CORE_TMP="$BUILD_DIR/.core-build.tmp"   # build here, then atomically rename over CORE_BIN
 APP_BIN="$BUILD_DIR/Butler"
 DATA_DIR="${BUTLER_DATA_DIR:-$HOME/.butler}"
+
+# Persistent Swift module cache: compiling the AppKit/Foundation modules is the
+# bulk of a Swift build (~22s); reusing a shared cache drops a re-run to ~1s.
+MODULE_CACHE="${BUTLER_MODULE_CACHE:-$HOME/.cache/butler-swift-modulecache}"
 
 # --- prerequisites -----------------------------------------------------------
 command -v go >/dev/null 2>&1 || {
@@ -28,16 +33,22 @@ mkdir -p "$BUILD_DIR"
 # --- build the Go sidecar → build/butler-core --------------------------------
 # GOPROXY=direct fetches modules straight from source (mattn/go-sqlite3), needed
 # where the public Go proxy is blocked. cgo + the sqlite_fts5 tag are mandatory.
-echo "==> Building Go sidecar → build/butler-core"
+# Build to a temp path then atomically rename: a re-run would otherwise overwrite
+# the binary the still-running instance is executing, which fails "text file busy".
+echo "==> Building Go sidecar → $CORE_BIN"
 (
     cd "$CORE_DIR"
     CGO_ENABLED=1 GOPROXY="${GOPROXY:-direct}" GOSUMDB="${GOSUMDB:-off}" \
-        go build -tags sqlite_fts5 -o "$CORE_BIN" .
+        go build -tags sqlite_fts5 -o "$CORE_TMP" .
 )
+mv -f "$CORE_TMP" "$CORE_BIN"
 
 # --- build the Swift overlay → build/Butler ----------------------------------
-echo "==> Building Swift overlay → build/Butler"
-( cd "$APP_DIR" && swift build -c release )
+# module-cache-path makes the AppKit/Foundation module compilation reusable
+# across builds (see MODULE_CACHE note above).
+echo "==> Building Swift overlay → $APP_BIN"
+mkdir -p "$MODULE_CACHE"
+( cd "$APP_DIR" && swift build -c release -Xswiftc -module-cache-path -Xswiftc "$MODULE_CACHE" )
 cp "$APP_DIR/.build/release/Butler" "$APP_BIN"
 
 # --- stop any existing instance (idempotent: converge to one fresh instance) --
