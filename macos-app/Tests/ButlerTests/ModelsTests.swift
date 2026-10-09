@@ -37,6 +37,16 @@ import Testing
         #expect(resp.error == #"unknown cmd: "x""#)
     }
 
+    @Test func decodesGoMarshalFailureFallback() throws {
+        // Exact line Go's WriteResponse emits when encoding fails
+        // (go-rewrite/processor/response.go). It must decode, or the request hangs.
+        let json = #"{"id":42,"ok":false,"error":"response encoding failed"}"#
+        let resp = try JSONDecoder().decode(SidecarResponse.self, from: Data(json.utf8))
+        #expect(resp.id == 42)
+        #expect(!resp.ok)
+        #expect(resp.error == "response encoding failed")
+    }
+
     @Test func encodesDeleteRequestWithNoteIDKey() throws {
         let req = SidecarRequest(id: 4, cmd: "delete", noteID: 12)
         let obj = try jsonObject(req)

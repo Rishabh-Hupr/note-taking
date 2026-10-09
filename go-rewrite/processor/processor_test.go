@@ -3,9 +3,12 @@
 package processor
 
 import (
+	"Go-Butler/dao"
 	"bufio"
 	"bytes"
 	"database/sql"
+	"encoding/json"
+	"math"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -126,5 +129,28 @@ func TestWriteResponse(t *testing.T) {
 	WriteResponse(w, Response{ID: 5, OK: true})
 	if got, want := buf.String(), `{"id":5,"ok":true}`+"\n"; got != want {
 		t.Errorf("WriteResponse = %q want %q", got, want)
+	}
+}
+
+func TestWriteResponse_MarshalFailureFallbackIsDecodable(t *testing.T) {
+	// NaN can't be JSON-encoded, forcing the fallback path. The fallback must
+	// still be a complete response (id + ok + error) so the frontend can decode
+	// it instead of dropping the line and timing out.
+	var buf bytes.Buffer
+	w := bufio.NewWriter(&buf)
+	WriteResponse(w, Response{ID: 42, OK: true, Notes: []dao.Note{{Key: "k", Rank: math.NaN()}}})
+
+	var got map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(buf.Bytes()), &got); err != nil {
+		t.Fatalf("fallback is not valid JSON: %v (%q)", err, buf.String())
+	}
+	if got["id"] != float64(42) {
+		t.Errorf("id=%v want 42", got["id"])
+	}
+	if ok, present := got["ok"]; !present || ok != false {
+		t.Errorf("ok must be present and false, got %v (present=%v)", ok, present)
+	}
+	if got["error"] == nil || got["error"] == "" {
+		t.Errorf("fallback should carry an error message, got %v", got["error"])
 	}
 }
