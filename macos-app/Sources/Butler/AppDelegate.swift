@@ -21,11 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installStatusItem() // a small menu-bar presence while running
 
         sidecar = SidecarClient(binaryURL: resolveSidecarBinary(), dataDir: nil)
-        do {
-            try sidecar.start()
-        } catch {
-            NSLog("Butler: failed to launch sidecar: \(error)")
-        }
+        sidecar.startWithRetry() // retries with backoff if the binary isn't there yet
 
         // Fetch overlay (⌘⌥F)
         let sVC = SearchViewController(sidecar: sidecar)

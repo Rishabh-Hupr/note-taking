@@ -20,6 +20,10 @@ final class SidecarClient: @unchecked Sendable {
 
     private var process: Process?
     private var stdin: FileHandle?
+    private var stdout: FileHandle?
+    // Bumped on every launch and termination; output tagged with an older
+    // generation (a dead process's pipe still draining) is ignored.
+    private var generation = 0
 
     private let lock = NSLock()
     private let writeQueue = DispatchQueue(label: "butler.sidecar.write")
@@ -67,10 +71,19 @@ final class SidecarClient: @unchecked Sendable {
             uiLog("warning: could not open \(logPath) for sidecar stderr; it will fall back to the UI log")
         }
 
+        lock.lock()
+        generation += 1
+        let launchGeneration = generation
+        lock.unlock()
+
         outPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty else { return }
-            self?.ingest(data)
+            guard !data.isEmpty else {
+                // EOF: the process is gone. Detach, per FileHandle's contract.
+                handle.readabilityHandler = nil
+                return
+            }
+            self?.ingest(data, generation: launchGeneration)
         }
         proc.terminationHandler = { [weak self] _ in
             self?.handleTermination()
@@ -80,7 +93,31 @@ final class SidecarClient: @unchecked Sendable {
         lock.lock()
         process = proc
         stdin = inPipe.fileHandleForWriting
+        stdout = outPipe.fileHandleForReading
         lock.unlock()
+    }
+
+    /// Launch the sidecar; if that fails, log it and keep retrying with backoff.
+    func startWithRetry() {
+        do {
+            try start()
+        } catch {
+            uiLog("sidecar launch failed: \(error); retrying")
+            scheduleRestart()
+        }
+    }
+
+    // Relaunch after the current backoff delay. A failed relaunch (e.g. the binary
+    // is missing mid-rebuild) schedules another attempt instead of giving up.
+    private func scheduleRestart() {
+        lock.lock()
+        let delay = restartDelay
+        restartDelay = min(restartDelay * 2, maxRestartDelay)
+        lock.unlock()
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.startWithRetry()
+        }
     }
 
     private func handleTermination() {
@@ -89,23 +126,25 @@ final class SidecarClient: @unchecked Sendable {
         let inflight = pending
         pending.removeAll()
         readBuffer.removeAll() // drop any half-received line so it can't corrupt the next frame
+        generation += 1        // ...and ignore anything the dead pipe still delivers
+        stdout?.readabilityHandler = nil
+        stdout = nil
         stdin = nil
         process = nil
-        let delay = restartDelay
-        restartDelay = min(restartDelay * 2, maxRestartDelay)
         lock.unlock()
 
         for (_, cont) in inflight { cont.resume(throwing: SidecarError.notRunning) }
-
-        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
-            try? self?.start()
-        }
+        scheduleRestart()
     }
 
     // MARK: - Framing
 
-    private func ingest(_ data: Data) {
+    private func ingest(_ data: Data, generation dataGeneration: Int) {
         lock.lock()
+        guard dataGeneration == generation else {
+            lock.unlock()
+            return
+        }
         readBuffer.append(data)
         var lines: [Data] = []
         while let nl = readBuffer.firstIndex(of: 0x0A) {
