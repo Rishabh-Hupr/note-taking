@@ -33,9 +33,14 @@ final class SearchViewController: NSViewController {
     private var searchTask: Task<Void, Never>?
 
     // Row heights: every row is one line, except the selected one, which grows to
-    // fit its full (multi-line) value, capped so a huge note can't fill the panel.
+    // fit its value up to `inlineLineLimit` lines. Longer notes show those lines
+    // inline (ending in "…") and open the full text in the side preview.
     private let collapsedHeight: CGFloat = 48
     private let maxExpandedHeight: CGFloat = 240
+    private let inlineLineLimit = 8
+    private let valueFont = NSFont.systemFont(ofSize: 12)
+    private lazy var valueLineHeight = NSLayoutManager().defaultLineHeight(for: valueFont)
+    private let preview = NotePreviewPanel()
 
     init(sidecar: SidecarClient) {
         self.sidecar = sidecar
@@ -104,10 +109,29 @@ final class SearchViewController: NSViewController {
             hintLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             hintLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
         ])
+
+        // The overlay hides when it loses key (click-away, ⌘⌥P); take the preview
+        // down with it.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowResignedKey(_:)),
+            name: NSWindow.didResignKeyNotification, object: nil
+        )
+    }
+
+    @objc private func windowResignedKey(_ note: Notification) {
+        guard (note.object as? NSWindow) === view.window else { return }
+        preview.hideNow()
+    }
+
+    // Close the overlay (copy / Esc), taking the preview with it.
+    private func dismiss() {
+        preview.hideNow()
+        onDismiss?()
     }
 
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
+        preview.hideNow()
         searchField.stringValue = ""
         results = []
         tableView.reloadData()
@@ -126,7 +150,9 @@ final class SearchViewController: NSViewController {
                 if Task.isCancelled { return }
                 self.results = notes
                 self.tableView.reloadData()
-                if !notes.isEmpty {
+                if notes.isEmpty {
+                    self.preview.dismissAnimated()
+                } else {
                     self.select(row: min(max(0, preferredRow), notes.count - 1))
                 }
             } catch {
@@ -134,6 +160,7 @@ final class SearchViewController: NSViewController {
                 if Task.isCancelled { return }
                 self.results = []
                 self.tableView.reloadData()
+                self.preview.dismissAnimated()
             }
         }
     }
@@ -167,6 +194,22 @@ final class SearchViewController: NSViewController {
         // Scroll only after the row has grown, so an expanding bottom row isn't
         // positioned by its old collapsed height and left clipped below the fold.
         tableView.scrollRowToVisible(current)
+        updatePreview(for: current)
+    }
+
+    // Long notes get the full text in the side preview; short ones close it.
+    private func updatePreview(for row: Int) {
+        guard row >= 0, row < results.count,
+              let window = view.window, window.isVisible,
+              exceedsInlineLimit(results[row]) else {
+            preview.dismissAnimated()
+            return
+        }
+        // Anchor to the part of the row that's actually on screen.
+        var rowRect = tableView.rect(ofRow: row).intersection(tableView.visibleRect)
+        if rowRect.isEmpty { rowRect = tableView.visibleRect }
+        let onScreen = window.convertToScreen(tableView.convert(rowRect, to: nil))
+        preview.present(results[row], anchor: onScreen, in: window)
     }
 
     private func moveSelection(by delta: Int) {
@@ -181,7 +224,7 @@ final class SearchViewController: NSViewController {
         guard row >= 0, row < results.count else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(results[row].value, forType: .string)
-        onDismiss?()
+        dismiss()
     }
 
     // ⌘D: delete the selected note, then refresh and keep the cursor near where it
@@ -218,7 +261,7 @@ extension SearchViewController: NSTextFieldDelegate {
         case #selector(NSResponder.insertNewline(_:)):
             copySelected(); return true
         case #selector(NSResponder.cancelOperation(_:)):
-            onDismiss?(); return true
+            dismiss(); return true
         default:
             return false
         }
@@ -249,9 +292,27 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
         return expandedHeight(for: results[row])
     }
 
-    // Measure the wrapped value text at the current column width and size the row
-    // to show all of it (key line + value + padding), capped at maxExpandedHeight.
+    // Size the selected row to show its value (key line + value + padding), up to
+    // `inlineLineLimit` lines; anything longer is read in the side preview.
     private func expandedHeight(for note: Note) -> CGFloat {
+        guard let valueHeight = measuredValueHeight(note) else { return collapsedHeight }
+        let inlineCap = valueLineHeight * CGFloat(inlineLineLimit)
+        let keyLineHeight: CGFloat = 20
+        let verticalPadding: CGFloat = 22
+        let total = keyLineHeight + ceil(min(valueHeight, inlineCap)) + verticalPadding
+        return min(max(collapsedHeight, total), expandedHeightCap())
+    }
+
+    // True when the note wraps to more lines than the row shows inline.
+    private func exceedsInlineLimit(_ note: Note) -> Bool {
+        guard let valueHeight = measuredValueHeight(note) else { return false }
+        return OverlayLayout.exceedsLines(
+            textHeight: valueHeight, lineHeight: valueLineHeight, limit: inlineLineLimit)
+    }
+
+    // Height of the value wrapped at the current column width, or nil before the
+    // table has been laid out.
+    private func measuredValueHeight(_ note: Note) -> CGFloat? {
         let horizontalInset: CGFloat = 16   // stack leading (8) + trailing (8)
         // Measure against the clip view's width (the actual content area), not the
         // table's bounds: when a vertical scroller is shown it narrows the usable
@@ -259,17 +320,17 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
         // the bottom of a long note. Before layout the width is ~0, so stay
         // collapsed; the next layout re-queries this with the true width.
         let contentWidth = tableView.enclosingScrollView?.contentView.bounds.width ?? tableView.bounds.width
-        guard contentWidth > 120 else { return collapsedHeight }
-        let width = contentWidth - horizontalInset
-        let valueFont = NSFont.systemFont(ofSize: 12)
-        let bounding = (note.value as NSString).boundingRect(
-            with: NSSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: valueFont])
-        let keyLineHeight: CGFloat = 20
-        let verticalPadding: CGFloat = 22
-        let total = keyLineHeight + ceil(bounding.height) + verticalPadding
-        return min(max(collapsedHeight, total), maxExpandedHeight)
+        guard contentWidth > 120 else { return nil }
+        return OverlayLayout.textHeight(
+            note.value, width: contentWidth - horizontalInset, font: valueFont)
+    }
+
+    // Let a long note use the visible list area, minus one collapsed row so a
+    // neighbour stays in view. Falls back to a fixed cap before first layout.
+    private func expandedHeightCap() -> CGFloat {
+        let visible = tableView.enclosingScrollView?.contentView.bounds.height ?? 0
+        guard visible > collapsedHeight * 2 else { return maxExpandedHeight }
+        return visible - collapsedHeight
     }
 
     // Table shouldn't grab first responder; keep focus in the search field.
@@ -290,19 +351,34 @@ private final class NoteCellView: NSTableCellView {
         valueLabel.textColor = .secondaryLabelColor
         valueLabel.lineBreakMode = .byTruncatingTail
 
+        // When a long value doesn't fit, the value (not the key) gives up space and
+        // its last visible line ends in "…".
+        valueLabel.cell?.truncatesLastVisibleLine = true
+        valueLabel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        keyLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+
         let stack = NSStackView(views: [keyLabel, valueLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 2
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
+        // Pinned to the top (not centered): a centered stack taller than its row
+        // overflows both edges, pushing the key out of view on long notes.
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 7),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -7),
         ])
     }
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func layout() {
+        // Wrap the value at the cell's real width so its height is measured correctly.
+        valueLabel.preferredMaxLayoutWidth = max(0, bounds.width - 16)
+        super.layout()
+    }
 
     func configure(with note: Note, expanded: Bool, animated: Bool) {
         keyLabel.stringValue = note.key

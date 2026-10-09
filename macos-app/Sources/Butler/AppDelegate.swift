@@ -53,6 +53,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self, selector: #selector(windowResignedKey(_:)),
             name: NSWindow.didResignKeyNotification, object: nil
         )
+        // Remember where the user drags each overlay so it reopens there.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowMoved(_:)),
+            name: NSWindow.didMoveNotification, object: nil
+        )
     }
 
     // MARK: - Menu bar
@@ -141,19 +146,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if window === fetchPanel || window === putPanel { window.orderOut(nil) }
     }
 
-    // Center horizontally, upper third vertically, on whichever screen has the
-    // mouse. Uses visibleFrame and clamps so the panel never clips off-screen or
-    // under the menu bar on shorter displays.
+    // MARK: - Remembered positions
+
+    // True while we move a panel ourselves, so only user drags get saved.
+    private var isPositioningPanel = false
+
+    private func originDefaultsKey(for window: NSWindow) -> String? {
+        if window === fetchPanel { return "butler.fetchPanelOrigin" }
+        if window === putPanel { return "butler.putPanelOrigin" }
+        return nil
+    }
+
+    @objc private func windowMoved(_ note: Notification) {
+        guard !isPositioningPanel,
+              let window = note.object as? NSWindow,
+              let key = originDefaultsKey(for: window) else { return }
+        UserDefaults.standard.set(NSStringFromPoint(window.frame.origin), forKey: key)
+    }
+
+    // The saved origin, clamped onto the screen it's on — or nil if there's none or
+    // that screen is gone (e.g. an unplugged display), so we fall back to default.
+    private func savedOrigin(for panel: NSPanel) -> NSPoint? {
+        guard let key = originDefaultsKey(for: panel),
+              let stored = UserDefaults.standard.string(forKey: key) else { return nil }
+        return OverlayLayout.restoredOrigin(
+            NSPointFromString(stored), size: panel.frame.size,
+            screens: NSScreen.screens.map(\.visibleFrame))
+    }
+
+    // Reopen where the user last dragged it; otherwise center horizontally, upper
+    // third vertically, on whichever screen has the mouse. Uses visibleFrame and
+    // clamps so the panel never clips off-screen or under the menu bar.
     private func position(_ panel: NSPanel) {
+        isPositioningPanel = true
+        defer { isPositioningPanel = false }
+        if let origin = savedOrigin(for: panel) {
+            panel.setFrameOrigin(origin)
+            return
+        }
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
         guard let vf = screen?.visibleFrame else { return }
-        let size = panel.frame.size
-        var x = vf.midX - size.width / 2
-        var y = vf.midY + vf.height * 0.12
-        x = min(max(x, vf.minX + 8), vf.maxX - size.width - 8)
-        y = min(max(y, vf.minY + 8), vf.maxY - size.height - 8)
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+        panel.setFrameOrigin(OverlayLayout.defaultOrigin(size: panel.frame.size, visible: vf))
     }
 
     // MARK: - Sidecar binary resolution
