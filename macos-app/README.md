@@ -37,6 +37,15 @@ the app binary (the `build/` layout) → `../go-rewrite/butler-core` (dev fallba
 Then press **⌘⌥F** (search) or **⌘⌥P** (add note). Notes live in `~/.butler/`
 (override with `BUTLER_DATA_DIR`).
 
+## Testing
+```bash
+cd macos-app && swift test
+```
+Uses **Swift Testing** (XCTest isn't available with Command Line Tools alone).
+Tests cover the Go↔Swift JSON wire contract (`ModelsTests`) and the pure overlay
+layout rules in `Layout.swift` — text sizing, the 8-line inline / 50-line preview
+caps, preview placement, and remembered panel positions (`LayoutTests`).
+
 ## Status (MVP)
 - ✅ Summon/dismiss, vibrancy panel, live search, ↑/↓ nav, Enter→copy.
 - ✅ Put (add-note) overlay: Key + Value, Enter saves.
