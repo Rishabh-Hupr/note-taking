@@ -103,8 +103,6 @@ cd macos-app && swift test                                       # macOS app (Sw
 For a fast edit-and-run loop use `./test-butler.sh` (debug build into
 `test-build/`, ~2s Swift rebuilds; `--go` rebuilds and hot-swaps just the backend).
 
-## Status
-
-MVP: search, copy, add-note, delete, and the long-note preview all work end to end. Not yet packaged as
-a double-click `.app` — it currently runs from source via `launch-butler.sh`.
-Planned next: a signed `.app` bundle with a login item (auto-resident).
+## Next plans
+See [plan_to_implement.md](plan_to_implement.md) for what's done and what's next,
+and [CHANGELOG.md](CHANGELOG.md) for what changed when.

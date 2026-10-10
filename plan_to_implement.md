@@ -123,7 +123,3 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 - `ShowDB`/`fetchLike` sort by `updated_at` only — add `id DESC` as a tie-breaker.
 - ⌘D does nothing with Caps Lock on (exact modifier-flag match).
 - Remove dead `RebuildFTSTable` (duplicates the trigger SQL).
-
-### Post-MVP polish
-- User-facing "engine unavailable — retrying" state if the sidecar keeps failing.
-- Migrate any existing notes from the old `db/` folder into `~/.butler`.
