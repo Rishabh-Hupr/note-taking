@@ -11,13 +11,17 @@ protocol. (Space + one modifier is reserved by macOS — Spotlight, input source
 Finder search — so F/P are used instead.)
 
 ## Layout
-- `Sources/Butler/main.swift` — entry point; sets `.accessory` (agent) policy.
-- `AppDelegate.swift` — launches the sidecar, registers the hotkey, owns the panel.
-- `GlobalHotKey.swift` — Carbon `RegisterEventHotKey` (no Accessibility permission).
-- `OverlayPanel.swift` — the borderless, floating, all-Spaces `NSPanel`.
-- `SearchViewController.swift` — vibrancy + search field + results table + key handling.
-- `SidecarClient.swift` — runs `butler-core`, matches requests↔responses, basic watchdog.
-- `Models.swift` — `Note` / request / response, mirroring the Go wire contract.
+`Sources/Butler/`, grouped by feature (SwiftPM compiles all subfolders as one module):
+- `App/` — `main.swift` (entry point, `.accessory` agent policy) and `AppDelegate.swift`
+  (launches the backend, registers hotkeys, owns the panels and menu-bar item).
+- `SearchNote/` — `SearchViewController` (search field, results, ↑/↓, ⏎ copy, ⌘D
+  delete) and `NotePreviewPanel` (side preview for long notes).
+- `AddNote/` — `PutViewController` (key + multi-line value, save).
+- `Overlay/` — `OverlayPanel` (borderless floating `NSPanel`), `ConfirmationBadge`
+  ("Saved" tick), `Layout` (pure sizing/placement rules, unit-tested).
+- `Backend/` — `SidecarClient` (runs `butler-core`, JSON over stdio, watchdog) and
+  `Models` (`Note` / request / response, mirroring the Go wire contract).
+- `System/` — `GlobalHotKey` (Carbon, no Accessibility permission) and `Logging`.
 
 ## Easiest: from the repo root
 ```bash
