@@ -64,8 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         // A butler-ish figure ready to serve; fall back on older macOS.
-        let icon = NSImage(systemSymbolName: "person.bust.fill", accessibilityDescription: "Butler")
-            ?? NSImage(systemSymbolName: "person.fill", accessibilityDescription: "Butler")
+        let icon = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "Butler")
+            ?? NSImage(systemSymbolName: "note", accessibilityDescription: "Butler")
         icon?.isTemplate = true
         item.button?.image = icon
 
