@@ -72,12 +72,19 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   rules (`OverlayLayout`), row-height vs real cell layout.
 - Dev loop: `test-butler.sh` builds debug (~2s incremental); dropped the no-op
   `-module-cache-path` flag.
+- **Feedback:** big green "Saved" `ConfirmationBadge` on put (dialog closes after
+  400ms, guarded so a pending dismiss can't close a reopened dialog); ⌘D shows a
+  brief "Deleted" message in the search hint row.
+- **Trim on save:** the Go `put` handler `TrimSpace`s key and value; whitespace-only
+  values are rejected (and the dialog treats them as empty).
+- Swift sources grouped into feature folders: `App/`, `SearchNote/`, `AddNote/`,
+  `Overlay/`, `Backend/`, `System/`.
 
 ### Extras (beyond the original plan)
 - Sidecar stderr → `app.log`; timestamped UI request/response logging to `butler-ui.log`.
 - Per-request panic recovery (`serveLine`) so a bad request can't crash the sidecar.
 - `test-butler.sh --go/--be` rebuilds only the Go sidecar and hot-swaps it into the
-  running app (watchdog respawn); persistent Swift module cache for fast rebuilds.
+  running app (watchdog respawn).
 - Edit-menu so ⌘C/⌘V/⌘X/⌘A + ⌘Q work in the overlays.
 - Overlay clamped to `visibleFrame` (no off-screen clip).
 - Minimal **menu-bar status item** (`square.and.pencil` icon) with Search / Add Note / Quit.

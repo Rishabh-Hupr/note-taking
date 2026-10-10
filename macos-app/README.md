@@ -3,8 +3,10 @@
 Native AppKit overlay for the Butler note store. Resident agent (no Dock icon)
 with two hotkeys:
 - **⌘⌥F** — search: type to filter notes, ↑/↓ to move, **Enter** to copy the
-  selected note to the clipboard, **Esc**/click-away to dismiss.
-- **⌘⌥P** — put: enter a Key and Value, **Enter** to save, **Esc** to cancel.
+  selected note to the clipboard, **⌘D** to delete it, **Esc**/click-away to
+  dismiss. Notes over 8 lines open in a side preview.
+- **⌘⌥P** — put: enter a Key and Value, **⌘Return** to save (**Enter** adds a
+  newline), **Esc** to cancel.
 
 Data/search is handled by the Go `butler-core` sidecar over a newline-JSON stdio
 protocol. (Space + one modifier is reserved by macOS — Spotlight, input sources,
@@ -51,7 +53,10 @@ layout rules in `Layout.swift` — text sizing, the 8-line inline / 50-line prev
 caps, preview placement, and remembered panel positions (`LayoutTests`).
 
 ## Status (MVP)
-- ✅ Summon/dismiss, vibrancy panel, live search, ↑/↓ nav, Enter→copy.
-- ✅ Put (add-note) overlay: Key + Value, Enter saves.
+- ✅ Summon/dismiss, vibrancy panel, live search, ↑/↓ nav, Enter→copy, ⌘D delete
+  (with confirmation).
+- ✅ Long-note side preview (`NotePreviewPanel`), deterministic sizing.
+- ✅ Put (add-note) overlay: Key + multi-line Value, ⌘Return saves, "Saved" tick.
+- ✅ Overlays remember their dragged position.
 - ⏳ Packaging into a signed `.app` with `LSUIElement` (Info.plist under `Resources/`).
 - ⏳ User-visible "engine unavailable" state on repeated sidecar failure.

@@ -5,10 +5,15 @@ notes or code snippets as simple key→value pairs, summoned from anywhere with 
 global hotkey. A minimalist, Spotlight-style knowledge base.
 
 - **⌘⌥F** — search: type to filter (matches keys **and** values), ↑/↓ to move,
-  **Enter** to copy the selected note to the clipboard, **⌘D** to delete it,
-  **Esc**/click-away to dismiss. The selected note expands to show its full text.
+  **Enter** to copy the selected note to the clipboard, **⌘D** to delete it
+  (a short "Deleted" confirmation shows at the bottom), **Esc**/click-away to
+  dismiss. The selected note expands to show its text; notes over 8 lines also
+  open the full text in a side preview (scrollable past 50 lines).
 - **⌘⌥P** — add a note: type a **Key** and **Value**, **⌘Return** to save
-  (**Enter** inserts a newline in the value), **Esc** to cancel.
+  (**Enter** inserts a newline in the value), **Esc** to cancel. A green "Saved"
+  tick confirms it. Leading/trailing spaces and blank lines are trimmed.
+
+Both windows can be dragged anywhere and reopen where you left them.
 
 Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`).
 
@@ -88,14 +93,18 @@ cp macos-app/.build/release/Butler build/Butler
 ./build/Butler
 ```
 
-Run the backend tests with the FTS5 build tag:
+## Tests
 
 ```bash
-cd go-rewrite && go test -tags sqlite_fts5 ./...
+cd go-rewrite && CGO_ENABLED=1 go test -tags sqlite_fts5 ./...   # Go backend
+cd macos-app && swift test                                       # macOS app (Swift Testing)
 ```
+
+For a fast edit-and-run loop use `./test-butler.sh` (debug build into
+`test-build/`, ~2s Swift rebuilds; `--go` rebuilds and hot-swaps just the backend).
 
 ## Status
 
-MVP: search, copy, add-note, and delete all work end to end. Not yet packaged as
+MVP: search, copy, add-note, delete, and the long-note preview all work end to end. Not yet packaged as
 a double-click `.app` — it currently runs from source via `launch-butler.sh`.
 Planned next: a signed `.app` bundle with a login item (auto-resident).

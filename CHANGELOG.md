@@ -2,7 +2,17 @@
 
 ## 2026-10-10
 
+### New features
+- **A big green "Saved" tick** pops up when you save a note, and the add-note
+  window now closes after 0.4s (was 0.75s).
+- **Deleting a note shows a short confirmation** ("Deleted "key"") at the bottom
+  of the search window.
+- **Saved notes are trimmed**: spaces, tabs and blank lines at the start or end of
+  the key and value are dropped. A value that's only blank space can't be saved.
+
 ### Bug fixes
+- Reopening the add-note window right after a save no longer gets it closed by
+  the previous save.
 - A **long selected note no longer ends in "…"** — it now shows in full (or opens
   the side preview if it's over 8 lines). The row height was being measured 32pt
   too wide.
@@ -11,6 +21,8 @@
 
 ### Changes
 - New menu-bar icon (`square.and.pencil`).
+- The app's source files are now grouped into feature folders (`App/`,
+  `SearchNote/`, `AddNote/`, `Overlay/`, `Backend/`, `System/`).
 
 ## 2026-10-09
 
