@@ -55,6 +55,24 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 - Notes: deviated from the original plan — delete by **id not key**, shortcut
   **⌘D not ⌘⌫**, and no confirm/undo (fast launcher-style UX).
 
+### Phase 6 — Long notes, remembered positions, frontend tests
+- **Side preview for long notes:** notes over 8 wrapped lines open `NotePreviewPanel`
+  beside the overlay (fade + slide in) with the full text, up to 50 lines then
+  scrolling. Never takes key, so ↑/↓, ⏎, ⌘D keep working. Sizing comes only from
+  the text and a fixed wrap width (scroller sits in a reserved gutter), so it's
+  deterministic. Narrows (min 300pt) rather than covering the overlay.
+- Selected row pins the key to the top; results table uses `.plain` style so row
+  heights are measured at the width the text actually wraps at (`.inset` padded
+  rows 16pt a side and cut long notes off with "…").
+- Search and add-note overlays **remember their dragged position** (`UserDefaults`),
+  clamped on-screen, falling back to centered if that display is gone.
+- Watchdog retries failed sidecar launches; Go's marshal-failure fallback includes
+  `"ok":false`.
+- **Swift Testing suite** (`cd macos-app && swift test`): wire contract, layout
+  rules (`OverlayLayout`), row-height vs real cell layout.
+- Dev loop: `test-butler.sh` builds debug (~2s incremental); dropped the no-op
+  `-module-cache-path` flag.
+
 ### Extras (beyond the original plan)
 - Sidecar stderr → `app.log`; timestamped UI request/response logging to `butler-ui.log`.
 - Per-request panic recovery (`serveLine`) so a bad request can't crash the sidecar.
@@ -62,7 +80,7 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   running app (watchdog respawn); persistent Swift module cache for fast rebuilds.
 - Edit-menu so ⌘C/⌘V/⌘X/⌘A + ⌘Q work in the overlays.
 - Overlay clamped to `visibleFrame` (no off-screen clip).
-- Minimal **menu-bar status item** (butler figure) with Search / Add Note / Quit.
+- Minimal **menu-bar status item** (`square.and.pencil` icon) with Search / Add Note / Quit.
 - `launch-butler.sh` — builds both halves, launches backgrounded, idempotent reruns.
 - Accurate root `README.md`; repo history rewritten to the personal GitHub identity.
 
@@ -86,13 +104,18 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   short "drop from the notch" reveal animation.
 - Gracefully fall back to the current upper-third centering on non-notched displays.
 
-### Phase 6 — Packaging (make it a real app)
+### Phase 7 — Packaging (make it a real app)
 - Build a signed `Butler.app`: `Info.plist` with `LSUIElement`, bundle `butler-core`
   into `Contents/Resources/` (Xcode Run Script or a package step), resolve it via
   `Bundle.main` at runtime.
 - Ad-hoc codesign (`codesign --force --deep --sign -`).
 - `SMAppService` login item so it auto-starts and stays resident — double-click
   install, no terminal.
+
+### Code-review follow-ups (2026-10-09, open)
+- `ShowDB`/`fetchLike` sort by `updated_at` only — add `id DESC` as a tie-breaker.
+- ⌘D does nothing with Caps Lock on (exact modifier-flag match).
+- Remove dead `RebuildFTSTable` (duplicates the trigger SQL).
 
 ### Post-MVP polish
 - User-facing "engine unavailable — retrying" state if the sidecar keeps failing.
