@@ -6,6 +6,7 @@ import (
 	"Go-Butler/helpers"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // safeHandle runs handle but converts a panic on any single request into an
@@ -29,6 +30,10 @@ func handler(db *sql.DB, req Request) Response {
 		resp.OK = true
 
 	case "put":
+		// Drop leading/trailing whitespace (spaces, tabs, blank lines) — never
+		// meaningful at the edges of a note, and easy to add by accident.
+		req.Key = strings.TrimSpace(req.Key)
+		req.Value = strings.TrimSpace(req.Value)
 		if req.Key == "" || req.Value == "" {
 			resp.Error = "put requires both key and value"
 			return resp

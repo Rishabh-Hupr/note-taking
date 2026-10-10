@@ -154,3 +154,28 @@ func TestWriteResponse_MarshalFailureFallbackIsDecodable(t *testing.T) {
 		t.Errorf("fallback should carry an error message, got %v", got["error"])
 	}
 }
+
+func TestHandler_PutTrimsSurroundingWhitespace(t *testing.T) {
+	cases := []struct{ key, value, wantKey, wantValue string }{
+		{"k1", "body\n\n", "k1", "body"},
+		{"k2", "\n\t  body", "k2", "body"},
+		{"  k3\t", " \n line1\n\n  line2 \n\t", "k3", "line1\n\n  line2"}, // inner whitespace kept
+	}
+	for _, c := range cases {
+		db := newTestDB(t)
+		if r := handler(db, Request{ID: 1, Cmd: "put", Key: c.key, Value: c.value}); !r.OK {
+			t.Fatalf("put %q: %+v", c.key, r)
+		}
+		r := handler(db, Request{ID: 2, Cmd: "list"})
+		if len(r.Notes) != 1 || r.Notes[0].Key != c.wantKey || r.Notes[0].Value != c.wantValue {
+			t.Errorf("put(%q, %q) stored %+v, want key %q value %q", c.key, c.value, r.Notes, c.wantKey, c.wantValue)
+		}
+	}
+}
+
+func TestHandler_PutRejectsBlankOnlyValue(t *testing.T) {
+	r := handler(newTestDB(t), Request{ID: 1, Cmd: "put", Key: "k", Value: "\n \t \n"})
+	if r.OK {
+		t.Errorf("a value of only blank lines should be rejected, got %+v", r)
+	}
+}
