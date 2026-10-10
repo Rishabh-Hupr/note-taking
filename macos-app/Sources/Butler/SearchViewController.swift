@@ -29,6 +29,10 @@ final class SearchViewController: NSViewController {
     private let searchField = SearchField()
     private let tableView = NSTableView()
     private let hintLabel = NSTextField(labelWithString: "")
+    private let defaultHint = "↑↓ navigate    ⏎ copy    ⌘D delete    ⎋ close"
+    // Bumped per hint flash, so an older flash's timer can't restore the hints
+    // over a newer message.
+    private var hintGeneration = 0
     private var results: [Note] = []
     private var searchTask: Task<Void, Never>?
 
@@ -86,7 +90,7 @@ final class SearchViewController: NSViewController {
         // available actions (notably ⌘D to delete) are always discoverable.
         hintLabel.font = .systemFont(ofSize: 11)
         hintLabel.textColor = .secondaryLabelColor
-        hintLabel.stringValue = "↑↓ navigate    ⏎ copy    ⌘D delete    ⎋ close"
+        hintLabel.stringValue = defaultHint
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hintLabel)
 
@@ -145,6 +149,7 @@ final class SearchViewController: NSViewController {
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
         preview.hideNow()
+        resetHint()
         searchField.stringValue = ""
         results = []
         tableView.reloadData()
@@ -246,15 +251,39 @@ final class SearchViewController: NSViewController {
         let row = tableView.selectedRow
         guard row >= 0, row < results.count else { return }
         let id = results[row].id
+        let key = results[row].key
         Task { [weak self] in
             guard let self else { return }
             do {
                 try await self.sidecar.delete(id: id)
                 self.runSearch(self.searchField.stringValue, selecting: row)
+                self.flashHint("🗑  Deleted “\(key)”", color: .systemRed)
             } catch {
-                // Leave the list as-is on failure; the response logging captures why.
+                // Leave the list as-is; the response logging captures why.
+                self.flashHint("Delete failed — try again", color: .systemRed)
             }
         }
+    }
+
+    // Briefly replace the shortcut hints with a confirmation, then restore them.
+    private func flashHint(_ message: String, color: NSColor, seconds: Double = 1.5) {
+        hintGeneration += 1
+        let generation = hintGeneration
+        hintLabel.stringValue = message
+        hintLabel.textColor = color
+        hintLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard let self, generation == self.hintGeneration else { return }
+            self.resetHint()
+        }
+    }
+
+    private func resetHint() {
+        hintGeneration += 1
+        hintLabel.stringValue = defaultHint
+        hintLabel.textColor = .secondaryLabelColor
+        hintLabel.font = .systemFont(ofSize: 11)
     }
 }
 
