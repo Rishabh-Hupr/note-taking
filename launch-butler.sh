@@ -14,10 +14,6 @@ CORE_TMP="$BUILD_DIR/.core-build.tmp"   # build here, then atomically rename ove
 APP_BIN="$BUILD_DIR/Butler"
 DATA_DIR="${BUTLER_DATA_DIR:-$HOME/.butler}"
 
-# Persistent Swift module cache: compiling the AppKit/Foundation modules is the
-# bulk of a Swift build (~22s); reusing a shared cache drops a re-run to ~1s.
-MODULE_CACHE="${BUTLER_MODULE_CACHE:-$HOME/.cache/butler-swift-modulecache}"
-
 # --- prerequisites -----------------------------------------------------------
 command -v go >/dev/null 2>&1 || {
     echo "error: 'go' not found. Install Go (e.g. 'brew install go' or 'mise use -g go@latest')." >&2
@@ -44,11 +40,11 @@ echo "==> Building Go sidecar → $CORE_BIN"
 mv -f "$CORE_TMP" "$CORE_BIN"
 
 # --- build the Swift overlay → build/Butler ----------------------------------
-# module-cache-path makes the AppKit/Foundation module compilation reusable
-# across builds (see MODULE_CACHE note above).
+# SwiftPM caches the prebuilt AppKit/Foundation modules inside .build/ (the
+# slow part of a cold build, ~22s); keep every build on the same flags so they
+# all share that one cache. Avoid wiping .build/ unless you need to.
 echo "==> Building Swift overlay → $APP_BIN"
-mkdir -p "$MODULE_CACHE"
-( cd "$APP_DIR" && swift build -c release -Xswiftc -module-cache-path -Xswiftc "$MODULE_CACHE" )
+( cd "$APP_DIR" && swift build -c release )
 cp "$APP_DIR/.build/release/Butler" "$APP_BIN"
 
 # --- stop any existing instance (idempotent: converge to one fresh instance) --

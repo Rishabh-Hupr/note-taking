@@ -19,12 +19,6 @@ APP_BIN="$TEST_BUILD_DIR/Butler"
 # (separate from a real ~/.butler). launch_app exports this as BUTLER_DATA_DIR.
 DATA_DIR="$TEST_BUILD_DIR"
 
-# Persistent Swift module cache. Compiling the AppKit/Foundation Clang modules is
-# the bulk of a Swift build (~22s); a shared cache reused across builds drops an
-# incremental Swift rebuild to ~1s. Kept outside .build so `swift package clean`
-# and manual .build wipes don't throw it away.
-MODULE_CACHE="${BUTLER_MODULE_CACHE:-$HOME/.cache/butler-swift-modulecache}"
-
 # --- flags -------------------------------------------------------------------
 # --core-only (-c): rebuild just the Go sidecar and hot-swap it into the running
 # app — no Swift build, no app restart. The app's SidecarClient watchdog respawns
@@ -95,12 +89,9 @@ if [[ "$CORE_ONLY" == 1 ]]; then
 fi
 
 # --- build the Swift overlay → build/Butler ----------------------------------
-# -c release for a shippable binary; module-cache-path makes the AppKit/Foundation
-# module compilation reusable across builds (see MODULE_CACHE note above).
 echo "==> Building Swift overlay → $APP_BIN"
-mkdir -p "$MODULE_CACHE"
-( cd "$APP_DIR" && swift build -c release -Xswiftc -module-cache-path -Xswiftc "$MODULE_CACHE" )
-cp "$APP_DIR/.build/release/Butler" "$APP_BIN"
+( cd "$APP_DIR" && swift build )
+cp "$APP_DIR/.build/debug/Butler" "$APP_BIN"
 
 # --- stop any existing instance (idempotent: converge to one fresh instance) --
 if pgrep -f "$APP_BIN" >/dev/null 2>&1; then
