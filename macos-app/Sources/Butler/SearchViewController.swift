@@ -76,15 +76,9 @@ final class SearchViewController: NSViewController {
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
 
-        tableView.headerView = nil
-        tableView.backgroundColor = .clear
-        tableView.rowHeight = 48
-        tableView.selectionHighlightStyle = .regular
+        Self.configureResultsTable(tableView)
         tableView.dataSource = self
         tableView.delegate = self
-        let column = NSTableColumn(identifier: .init("note"))
-        column.resizingMask = .autoresizingMask
-        tableView.addTableColumn(column)
         scroll.documentView = tableView
         view.addSubview(scroll)
 
@@ -127,6 +121,25 @@ final class SearchViewController: NSViewController {
     private func dismiss() {
         preview.hideNow()
         onDismiss?()
+    }
+
+    /// Results table setup. Separate (and static) so tests can check the geometry
+    /// that row-height measurement relies on.
+    static func configureResultsTable(_ table: NSTableView) {
+        table.headerView = nil
+        table.backgroundColor = .clear
+        table.rowHeight = 48
+        table.selectionHighlightStyle = .regular
+        // .plain + no horizontal spacing makes each cell exactly the scroll area's
+        // width. The default (.inset) silently pads rows by ~16pt a side, so row
+        // heights measured at the scroll width under-counted wrapped lines and cut
+        // long notes off with "…". Margins and the rounded highlight are drawn by
+        // NoteCellView / RoundedSelectionRowView instead.
+        table.style = .plain
+        table.intercellSpacing = NSSize(width: 0, height: table.intercellSpacing.height)
+        let column = NSTableColumn(identifier: .init("note"))
+        column.resizingMask = .autoresizingMask
+        table.addTableColumn(column)
     }
 
     // Called by AppDelegate each time the panel is summoned.
@@ -273,6 +286,10 @@ extension SearchViewController: NSTextFieldDelegate {
 extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
     func numberOfRows(in tableView: NSTableView) -> Int { results.count }
 
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        RoundedSelectionRowView()
+    }
+
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let id = NSUserInterfaceItemIdentifier("cell")
         let cell = (tableView.makeView(withIdentifier: id, owner: self) as? NoteCellView) ?? {
@@ -296,10 +313,8 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
     // `inlineLineLimit` lines; anything longer is read in the side preview.
     private func expandedHeight(for note: Note) -> CGFloat {
         guard let valueHeight = measuredValueHeight(note) else { return collapsedHeight }
-        let inlineCap = valueLineHeight * CGFloat(inlineLineLimit)
-        let keyLineHeight: CGFloat = 20
-        let verticalPadding: CGFloat = 22
-        let total = keyLineHeight + ceil(min(valueHeight, inlineCap)) + verticalPadding
+        let total = OverlayLayout.expandedRowHeight(
+            valueHeight: valueHeight, lineHeight: valueLineHeight, inlineLimit: inlineLineLimit)
         return min(max(collapsedHeight, total), expandedHeightCap())
     }
 
@@ -313,7 +328,9 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
     // Height of the value wrapped at the current column width, or nil before the
     // table has been laid out.
     private func measuredValueHeight(_ note: Note) -> CGFloat? {
-        let horizontalInset: CGFloat = 16   // stack leading (8) + trailing (8)
+        // Cells are exactly the scroll area's width (.plain style), so the label
+        // wraps at that width minus the cell's own margins on both sides.
+        let horizontalInset = NoteCellView.horizontalMargin * 2
         // Measure against the clip view's width (the actual content area), not the
         // table's bounds: when a vertical scroller is shown it narrows the usable
         // width, and measuring too wide would under-count wrapped lines and clip
@@ -340,7 +357,11 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
 
 // A cell with a key (bold) over a value. Collapsed it shows a one-line truncated
 // preview; when its row is selected it shows the full wrapped value and fades in.
-private final class NoteCellView: NSTableCellView {
+final class NoteCellView: NSTableCellView {
+    /// Text margin inside the cell, each side (matches the old .inset look: 16pt
+    /// row inset + 8pt stack padding).
+    static let horizontalMargin: CGFloat = 24
+
     private let keyLabel = NSTextField(labelWithString: "")
     private let valueLabel = NSTextField(labelWithString: "")
 
@@ -366,8 +387,8 @@ private final class NoteCellView: NSTableCellView {
         // Pinned to the top (not centered): a centered stack taller than its row
         // overflows both edges, pushing the key out of view on long notes.
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalMargin),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalMargin),
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 7),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -7),
         ])
@@ -376,7 +397,7 @@ private final class NoteCellView: NSTableCellView {
 
     override func layout() {
         // Wrap the value at the cell's real width so its height is measured correctly.
-        valueLabel.preferredMaxLayoutWidth = max(0, bounds.width - 16)
+        valueLabel.preferredMaxLayoutWidth = max(0, bounds.width - Self.horizontalMargin * 2)
         super.layout()
     }
 
@@ -404,5 +425,18 @@ private final class NoteCellView: NSTableCellView {
         } else {
             valueLabel.alphaValue = 1
         }
+    }
+}
+
+// Draws the selection as a rounded, inset highlight — the look .inset style gave
+// for free — while the row itself spans the full width (see tableView.style).
+final class RoundedSelectionRowView: NSTableRowView {
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard selectionHighlightStyle != .none else { return }
+        let color: NSColor = isEmphasized
+            ? .selectedContentBackgroundColor
+            : .unemphasizedSelectedContentBackgroundColor
+        color.setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 10, dy: 1), xRadius: 6, yRadius: 6).fill()
     }
 }

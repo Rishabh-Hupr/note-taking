@@ -11,6 +11,14 @@ enum OverlayLayout {
             attributes: [.font: font]).height)
     }
 
+    /// Selected search row: key line + value (up to `inlineLimit` lines) + padding.
+    /// Must cover what NoteCellView actually lays out, or the value gets cut off.
+    static func expandedRowHeight(valueHeight: CGFloat, lineHeight: CGFloat, inlineLimit: Int) -> CGFloat {
+        let keyLineHeight: CGFloat = 20
+        let verticalPadding: CGFloat = 22
+        return keyLineHeight + ceil(min(valueHeight, lineHeight * CGFloat(inlineLimit))) + verticalPadding
+    }
+
     /// True when text of `textHeight` wraps to more than `limit` lines.
     static func exceedsLines(textHeight: CGFloat, lineHeight: CGFloat, limit: Int) -> Bool {
         textHeight > lineHeight * CGFloat(limit) + 1
