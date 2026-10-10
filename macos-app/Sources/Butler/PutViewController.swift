@@ -61,6 +61,12 @@ final class PutViewController: NSViewController {
     private let keyField = NSTextField()
     private let valueView = ValueTextView()
     private let statusLabel = NSTextField(labelWithString: "")
+    private let savedBadge = ConfirmationBadge()
+    // How long the "Saved" badge shows before the dialog closes.
+    private let savedConfirmationDuration: UInt64 = 400_000_000
+    // Bumped each time the dialog is shown, so a pending post-save dismiss from an
+    // earlier save can't close a dialog the user has since reopened.
+    private var showGeneration = 0
 
     init(sidecar: SidecarClient) {
         self.sidecar = sidecar
@@ -121,6 +127,7 @@ final class PutViewController: NSViewController {
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
         [keyField, scroll, statusLabel].forEach { view.addSubview($0) }
+        view.addSubview(savedBadge) // last, so it sits on top of the fields
         NSLayoutConstraint.activate([
             keyField.topAnchor.constraint(equalTo: view.topAnchor, constant: 22),
             keyField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
@@ -134,6 +141,9 @@ final class PutViewController: NSViewController {
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.topAnchor.constraint(greaterThanOrEqualTo: scroll.bottomAnchor, constant: 10),
             statusLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -14),
+
+            savedBadge.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            savedBadge.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
     }
 
@@ -141,6 +151,8 @@ final class PutViewController: NSViewController {
     // intentionally NOT cleared here — an accidental dismiss keeps your text so
     // re-summoning restores it. Fields are cleared only after a successful save.
     func prepareForShow() {
+        showGeneration += 1
+        savedBadge.hide()
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.stringValue = "⌘⏎ save    ⏎ newline    ⎋ cancel"
         valueView.needsDisplay = true
@@ -151,7 +163,9 @@ final class PutViewController: NSViewController {
     private func save() {
         let key = keyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let value = valueView.string
-        guard !key.isEmpty, !value.isEmpty else {
+        // Blank lines alone don't count as a value (the backend also trims
+        // leading/trailing whitespace off whatever is saved).
+        guard !key.isEmpty, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             statusLabel.stringValue = "Both key and value are required"
             return
         }
@@ -159,14 +173,16 @@ final class PutViewController: NSViewController {
             guard let self else { return }
             do {
                 try await sidecar.put(key: key, value: value)
-                // Success: clear the draft and flash a brief confirmation before
-                // dismissing, so the save visibly registers.
+                // Success: clear the draft and pop a big "Saved" tick, then close.
+                let generation = showGeneration
                 keyField.stringValue = ""
                 valueView.string = ""
                 valueView.needsDisplay = true
-                statusLabel.textColor = .systemGreen
-                statusLabel.stringValue = "✓ Saved “\(key)”"
-                try? await Task.sleep(nanoseconds: 750_000_000)
+                savedBadge.pop()
+                try? await Task.sleep(nanoseconds: savedConfirmationDuration)
+                // Reopened meanwhile? Then that's a fresh dialog — leave it open.
+                guard generation == showGeneration else { return }
+                savedBadge.hide()
                 onDismiss?()
             } catch {
                 statusLabel.textColor = .systemRed
