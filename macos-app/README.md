@@ -20,9 +20,12 @@ Finder search — so F/P are used instead.)
   delete) and `NotePreviewPanel` (side preview for long notes).
 - `AddNote/` — `PutViewController` (key + multi-line value, save).
 - `Overlay/` — `OverlayPanel` (borderless floating `NSPanel`), `ConfirmationBadge`
-  ("Saved" tick), `Layout` (pure sizing/placement rules, unit-tested).
-- `Backend/` — `SidecarClient` (runs `butler-core`, JSON over stdio, watchdog) and
-  `Models` (`Note` / request / response, mirroring the Go wire contract).
+  ("Saved" tick), `LoadingDots` (search-in-progress indicator), `Layout` (pure
+  sizing/placement rules, unit-tested).
+- `Backend/` — `SidecarClient` (runs `butler-core`, JSON over stdio, watchdog,
+  per-request latency logging), `LineFramer` (splits the reply stream into lines,
+  each byte scanned once) and `Models` (`Note` / request / response, mirroring the
+  Go wire contract).
 - `System/` — `GlobalHotKey` (Carbon, no Accessibility permission) and `Logging`.
 
 ## Easiest: from the repo root

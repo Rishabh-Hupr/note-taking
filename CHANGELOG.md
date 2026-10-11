@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-11
+
+### Bug fixes
+- **Search no longer slows down (or fails) as your notes grow.** The app was
+  re-reading the backend's reply from the start every time another piece of it
+  arrived, so opening search took ~0.4s at 10,000 notes and timed out entirely
+  past ~35,000. Each byte is now read once.
+- **Holding ↑/↓ no longer flickers the long-note preview.** At either end of the
+  list nothing happens any more, and the preview now waits until you stop on a
+  note (0.1s) and updates once, instead of opening and closing on every row.
+- **Typing in search no longer lags.** Search used to run on every keystroke,
+  replaying the open-the-top-note animation each time; it now waits until you
+  pause typing for 0.1s.
+
+### Changes
+- **Search fills from memory**: the app keeps your recent notes in memory and
+  fills the list from there right after the window opens, instead of asking the
+  backend each time. The list is refreshed after every save and delete, and
+  re-checked in the background each time search opens. Clearing the search field
+  brings the list back instantly too.
+- **The search window is taller**, showing about 4 more notes at once.
+- **Animated dots** at the right of the search field show a search is running
+  while you type, and disappear when the results arrive.
+- **Search shows at most 200 notes at a time**: the 200 most recently changed
+  when you open it, or the 200 best matches once you type. Older notes are still
+  found by typing a search. Notes changed in the same second now always come back
+  in the same order.
+- **Latency logging**: every request writes a `⏱` line to `butler-ui.log` with how
+  long the round trip, processing and total took, and every ⌘⌥F logs how long
+  opening took. Each request in that log now starts with a `-------------`
+  separator, like `app.log`.
+
 ## 2026-10-10
 
 ### New features

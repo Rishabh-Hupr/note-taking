@@ -79,6 +79,30 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   values are rejected (and the dialog treats them as empty).
 - Swift sources grouped into feature folders: `App/`, `SearchNote/`, `AddNote/`,
   `Overlay/`, `Backend/`, `System/`.
+- **Scale (measured, 2026-10-11):** empty-query search loaded every note. With
+  300-byte notes: 10k → 4MB reply, 100k → 42MB. The bottleneck was Swift's stdout
+  framing (rescanned the whole buffer per ~64KB pipe piece: 0.4s at 10k, 34s at
+  100k, past the 5s timeout at ~35k), not SQLite (345ms at 100k) or JSON. Fixed:
+  - `LineFramer` scans each byte once (21MB: 25.7s → ms; regression test).
+  - `operations.MaxResults = 200` caps list and every search path (`LIMIT`), with
+    `id DESC` as a tie-breaker so the cap is deterministic.
+  - Per-request latency in `butler-ui.log`: `⏱ … roundtrip= processing= total=`
+    (dispatch → reply received → decoded).
+- **Typing debounce:** search runs 0.1s after the last keystroke instead of per
+  character (per-keystroke search replayed the row-grow + preview animations).
+  `LoadingDots` (•/••/•••) at the search field's right shows the wait + fetch.
+- Search window 640×400 → 640×592 (~4 more 48pt rows visible).
+- **Preview settles before updating:** ↑/↓ at the list ends is a no-op (was
+  re-selecting the same row ~30×/s); the side preview updates 0.1s after the
+  selection stops (`schedulePreview`), so holding an arrow doesn't flicker it.
+- **Recent-notes cache:** `SearchViewController.recentNotes` holds the empty-query
+  result in memory; ⌘⌥F shows the window first, then fills from it on the next
+  run-loop turn (no round trip). Filling *before* the first frame cost ~200ms per
+  open (layout of the list), so it must stay after the window appears. Warmed at launch,
+  refreshed after put (`PutViewController.onSaved`) and delete, and revalidated in
+  the background on each open (only redraws if the backend's list differs).
+  Clearing the field shows the cache immediately (no debounce, no round trip).
+- Open latency logged per ⌘⌥F: `⏱ open show= prepare= firstFrame= total=`.
 
 ### Extras (beyond the original plan)
 - Sidecar stderr → `app.log`; timestamped UI request/response logging to `butler-ui.log`.
@@ -119,7 +143,11 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 - `SMAppService` login item so it auto-starts and stays resident — double-click
   install, no terminal.
 
+### Observability
+- Optional: ship the `⏱` latencies to a local Prometheus (+ Grafana) for real-time
+  graphs. Pull model: something must expose `/metrics` on `127.0.0.1` for Prometheus
+  to scrape.
+
 ### Code-review follow-ups (2026-10-09, open)
-- `ShowDB`/`fetchLike` sort by `updated_at` only — add `id DESC` as a tie-breaker.
 - ⌘D does nothing with Caps Lock on (exact modifier-flag match).
 - Remove dead `RebuildFTSTable` (duplicates the trigger SQL).

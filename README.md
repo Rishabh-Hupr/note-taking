@@ -13,7 +13,8 @@ global hotkey. A minimalist, Spotlight-style knowledge base.
   (**Enter** inserts a newline in the value), **Esc** to cancel. A green "Saved"
   tick confirms it. Leading/trailing spaces and blank lines are trimmed.
 
-Both windows can be dragged anywhere and reopen where you left them.
+Both windows can be dragged anywhere and reopen where you left them. Search shows
+up to 200 notes at a time (most recent first); type to find older ones.
 
 Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`).
 
@@ -102,6 +103,17 @@ cd macos-app && swift test                                       # macOS app (Sw
 
 For a fast edit-and-run loop use `./test-butler.sh` (debug build into
 `test-build/`, ~2s Swift rebuilds; `--go` rebuilds and hot-swaps just the backend).
+
+Each request logs its latency to `butler-ui.log` (`~/.butler/`, or `test-build/` under
+`test-butler.sh`):
+```
+⏱ id=7 cmd=fetch notes=200 bytes=81234 roundtrip=3.1ms processing=0.6ms total=3.7ms
+```
+`roundtrip` = request sent → full reply received (pipe + backend); `processing` =
+reply → decoded for the UI. Each ⌘⌥F also logs how long opening took (format):
+```
+⏱ open show=<ms> prepare=<ms> firstFrame=<ms> total=<ms>
+```
 
 ## Next plans
 See [plan_to_implement.md](plan_to_implement.md) for what's done and what's next,
