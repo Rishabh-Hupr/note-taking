@@ -29,7 +29,7 @@ final class SidecarClient: @unchecked Sendable {
     private let writeQueue = DispatchQueue(label: "butler.sidecar.write")
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<SidecarResponse, Error>] = [:]
-    private var readBuffer = Data()
+    private var framer = LineFramer()
 
     // Relaunch backoff state.
     private var restartDelay: TimeInterval = 0.1
@@ -125,7 +125,7 @@ final class SidecarClient: @unchecked Sendable {
         lock.lock()
         let inflight = pending
         pending.removeAll()
-        readBuffer.removeAll() // drop any half-received line so it can't corrupt the next frame
+        framer.reset()         // drop any half-received line so it can't corrupt the next frame
         generation += 1        // ...and ignore anything the dead pipe still delivers
         stdout?.readabilityHandler = nil
         stdout = nil
@@ -145,12 +145,7 @@ final class SidecarClient: @unchecked Sendable {
             lock.unlock()
             return
         }
-        readBuffer.append(data)
-        var lines: [Data] = []
-        while let nl = readBuffer.firstIndex(of: 0x0A) {
-            lines.append(readBuffer.subdata(in: readBuffer.startIndex..<nl))
-            readBuffer.removeSubrange(readBuffer.startIndex...nl)
-        }
+        let lines = framer.append(data)
         lock.unlock()
 
         for line in lines { deliver(line) }
