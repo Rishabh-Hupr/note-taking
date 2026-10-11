@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Fetch overlay (⌘⌥F)
         let sVC = SearchViewController(sidecar: sidecar)
         sVC.onDismiss = { [weak self] in self?.fetchPanel?.orderOut(nil) }
-        fetchPanel = makePanel(vc: sVC, size: NSSize(width: 640, height: 400))
+        fetchPanel = makePanel(vc: sVC, size: NSSize(width: 640, height: 592))
         searchVC = sVC
 
         // Put overlay (⌘⌥P)

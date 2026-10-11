@@ -67,7 +67,7 @@ final class SearchViewController: NSViewController {
         effect.layer?.cornerRadius = 12
         effect.layer?.masksToBounds = true
         self.view = effect
-        view.frame = NSRect(x: 0, y: 0, width: 640, height: 400)
+        view.frame = NSRect(x: 0, y: 0, width: 640, height: 592) // ~4 more rows than 400
 
         searchField.translatesAutoresizingMaskIntoConstraints = false
         searchField.placeholderString = "Search notes…"
