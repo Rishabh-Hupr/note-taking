@@ -5,6 +5,7 @@ package operations
 import (
 	"Go-Butler/dao"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -219,4 +220,60 @@ func mustShow(t *testing.T, db *sql.DB) []dao.Note {
 		t.Fatalf("show: %v", err)
 	}
 	return notes
+}
+
+// insertN adds n notes directly (fast), all sharing the word "common" so every
+// search path matches them.
+func insertN(t *testing.T, db *sql.DB, n int) {
+	t.Helper()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < n; i++ {
+		if _, err := tx.Exec(`INSERT INTO notes(key, value) VALUES (?, ?)`,
+			fmt.Sprintf("note-%04d", i), "common body"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResultsAreCappedAtMaxResults(t *testing.T) {
+	db := newTestDB(t)
+	insertN(t, db, MaxResults+50)
+
+	paths := map[string]func() ([]dao.Note, error){
+		"ShowDB":           func() ([]dao.Note, error) { return ShowDB(db) },
+		"FetchNote(empty)": func() ([]dao.Note, error) { return FetchNote(db, "") },
+		"FetchNote(fts)":   func() ([]dao.Note, error) { return FetchNote(db, "common") },
+		"fetchLike":        func() ([]dao.Note, error) { return fetchLike(db, "common") },
+	}
+	for name, fetch := range paths {
+		notes, err := fetch()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(notes) != MaxResults {
+			t.Errorf("%s returned %d notes, want the cap of %d", name, len(notes), MaxResults)
+		}
+	}
+}
+
+func TestShowDB_TieBreaksByNewestID(t *testing.T) {
+	// Notes saved in the same second share updated_at; the higher (newer) id
+	// must come first so which notes make the cap is deterministic.
+	db := newTestDB(t)
+	insertN(t, db, 3)
+	if _, err := db.Exec(`UPDATE notes SET updated_at='2030-01-01 00:00:00'`); err != nil {
+		t.Fatal(err)
+	}
+	notes := mustShow(t, db)
+	for i := 1; i < len(notes); i++ {
+		if notes[i-1].Id < notes[i].Id {
+			t.Fatalf("same-timestamp notes not ordered by id DESC: %d before %d", notes[i-1].Id, notes[i].Id)
+		}
+	}
 }

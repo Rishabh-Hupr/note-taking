@@ -8,15 +8,22 @@ import (
 	"strings"
 )
 
-// ShowDB returns every note, newest first.
+// MaxResults caps every list/search reply. Nobody scrolls past a few hundred
+// rows, and the cap keeps a reply small (~80KB) however large the database
+// grows — uncapped, 100k notes meant a 42MB reply on every search open.
+// Older notes are still reachable by typing a search.
+const MaxResults = 200
+
+// ShowDB returns the MaxResults most recently updated notes, newest first.
 func ShowDB(db *sql.DB) ([]dao.Note, error) {
 	helpers.LogIt("-------------")
 	helpers.LogIt("Printing database...")
 
 	rows, err := db.Query(`
 		SELECT id, key, value, created_at, updated_at FROM notes
-		ORDER BY updated_at DESC
-	`)
+		ORDER BY updated_at DESC, id DESC
+		LIMIT ?
+	`, MaxResults)
 	if err != nil {
 		helpers.Error_happened(err)
 		return nil, err
@@ -72,8 +79,9 @@ func ftsSearch(db *sql.DB, query string) ([]dao.Note, error) {
 		FROM notes
 		JOIN notes_fts ON notes.id = notes_fts.rowid
 		WHERE notes_fts MATCH ?
-		ORDER BY notes_fts.rank
-	`, match)
+		ORDER BY notes_fts.rank, notes.id DESC
+		LIMIT ?
+	`, match, MaxResults)
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +106,9 @@ func fetchLike(db *sql.DB, query string) ([]dao.Note, error) {
 	rows, err := db.Query(`
 		SELECT id, key, value, created_at, updated_at FROM notes
 		WHERE key LIKE ? ESCAPE '\' OR value LIKE ? ESCAPE '\'
-		ORDER BY updated_at DESC
-	`, like, like)
+		ORDER BY updated_at DESC, id DESC
+		LIMIT ?
+	`, like, like, MaxResults)
 	if err != nil {
 		helpers.Error_happened(err)
 		return nil, err
