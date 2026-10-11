@@ -126,11 +126,13 @@ final class SearchViewController: NSViewController {
 
     @objc private func windowResignedKey(_ note: Notification) {
         guard (note.object as? NSWindow) === view.window else { return }
+        previewTask?.cancel()
         preview.hideNow()
     }
 
     // Close the overlay (copy / Esc), taking the preview with it.
     private func dismiss() {
+        previewTask?.cancel()
         preview.hideNow()
         onDismiss?()
     }
@@ -161,6 +163,7 @@ final class SearchViewController: NSViewController {
 
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
+        previewTask?.cancel()
         preview.hideNow()
         loadingDots.stop()
         resetHint()
@@ -269,7 +272,20 @@ final class SearchViewController: NSViewController {
         // Scroll only after the row has grown, so an expanding bottom row isn't
         // positioned by its old collapsed height and left clipped below the fold.
         tableView.scrollRowToVisible(current)
-        updatePreview(for: current)
+        schedulePreview(for: current)
+    }
+
+    // The preview follows the selection only once it settles for 0.1s, so holding
+    // ↑/↓ doesn't open/close it on every row passed; it updates once on stopping.
+    private var previewTask: Task<Void, Never>?
+
+    private func schedulePreview(for row: Int) {
+        previewTask?.cancel()
+        previewTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard let self, !Task.isCancelled, self.tableView.selectedRow == row else { return }
+            self.updatePreview(for: row)
+        }
     }
 
     // Long notes get the full text in the side preview; short ones close it.
@@ -291,6 +307,9 @@ final class SearchViewController: NSViewController {
         guard !results.isEmpty else { return }
         let current = tableView.selectedRow
         let next = max(0, min(results.count - 1, current + delta))
+        // Holding ↑/↓ at either end keeps landing on the same row; re-selecting it
+        // replayed the fade and re-attached the preview ~30×/s (flicker).
+        guard next != current else { return }
         select(row: next)
     }
 
