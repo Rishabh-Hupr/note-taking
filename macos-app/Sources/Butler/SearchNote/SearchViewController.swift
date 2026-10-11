@@ -36,6 +36,7 @@ final class SearchViewController: NSViewController {
     private var results: [Note] = []
     private var searchTask: Task<Void, Never>?
     private var debounceTask: Task<Void, Never>?
+    private let loadingDots = LoadingDots()
     // How long typing must pause before the search runs.
     private static let typingDebounce: UInt64 = 100_000_000
 
@@ -77,6 +78,7 @@ final class SearchViewController: NSViewController {
         searchField.delegate = self
         searchField.onCommandD = { [weak self] in self?.deleteSelected() }
         view.addSubview(searchField)
+        view.addSubview(loadingDots)
 
         let scroll = NSScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
@@ -100,7 +102,10 @@ final class SearchViewController: NSViewController {
         NSLayoutConstraint.activate([
             searchField.topAnchor.constraint(equalTo: view.topAnchor, constant: 18),
             searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            searchField.trailingAnchor.constraint(equalTo: loadingDots.leadingAnchor, constant: -8),
+            loadingDots.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            loadingDots.centerYAnchor.constraint(equalTo: searchField.centerYAnchor),
+            loadingDots.widthAnchor.constraint(equalToConstant: 34),
 
             scroll.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 14),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
@@ -152,6 +157,7 @@ final class SearchViewController: NSViewController {
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
         preview.hideNow()
+        loadingDots.stop()
         resetHint()
         searchField.stringValue = ""
         results = []
@@ -169,6 +175,7 @@ final class SearchViewController: NSViewController {
             do {
                 let notes = try await sidecar.fetch(query)
                 if Task.isCancelled { return }
+                self.loadingDots.stop()
                 self.results = notes
                 self.tableView.reloadData()
                 if notes.isEmpty {
@@ -179,6 +186,7 @@ final class SearchViewController: NSViewController {
             } catch {
                 // Transient (e.g. sidecar restarting): clear results for now.
                 if Task.isCancelled { return }
+                self.loadingDots.stop()
                 self.results = []
                 self.tableView.reloadData()
                 self.preview.dismissAnimated()
@@ -299,6 +307,7 @@ extension SearchViewController: NSTextFieldDelegate {
     func controlTextDidChange(_ obj: Notification) {
         debounceTask?.cancel()
         let query = searchField.stringValue
+        loadingDots.start() // shown through the debounce wait and the fetch
         debounceTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.typingDebounce)
             guard !Task.isCancelled else { return }
