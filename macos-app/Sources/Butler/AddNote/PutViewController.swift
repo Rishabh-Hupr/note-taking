@@ -57,6 +57,7 @@ final class ValueTextView: NSTextView {
 final class PutViewController: NSViewController {
     private let sidecar: SidecarClient
     var onDismiss: (() -> Void)?
+    var onSaved: (() -> Void)? // e.g. refresh search's cached recent notes
 
     private let keyField = NSTextField()
     private let valueView = ValueTextView()
@@ -173,6 +174,7 @@ final class PutViewController: NSViewController {
             guard let self else { return }
             do {
                 try await sidecar.put(key: key, value: value)
+                onSaved?()
                 // Success: clear the draft and pop a big "Saved" tick, then close.
                 let generation = showGeneration
                 keyField.stringValue = ""

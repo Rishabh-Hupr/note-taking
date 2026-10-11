@@ -32,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Put overlay (⌘⌥P)
         let pVC = PutViewController(sidecar: sidecar)
         pVC.onDismiss = { [weak self] in self?.putPanel?.orderOut(nil) }
+        pVC.onSaved = { [weak sVC] in sVC?.refreshRecent() }
+        sVC.refreshRecent() // warm the cache so even the first ⌘⌥F fills from memory
         putPanel = makePanel(vc: pVC, size: NSSize(width: 640, height: 178))
         putVC = pVC
 

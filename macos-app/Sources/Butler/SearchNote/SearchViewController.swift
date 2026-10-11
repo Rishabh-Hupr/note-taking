@@ -154,16 +154,61 @@ final class SearchViewController: NSViewController {
         table.addTableColumn(column)
     }
 
+    // In-memory copy of the empty-query result (the most recent notes), so opening
+    // search fills the list without a backend round trip. Kept current by
+    // refreshRecent() after saves/deletes; nil until the first fetch lands.
+    private var recentNotes: [Note]?
+
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
         preview.hideNow()
         loadingDots.stop()
         resetHint()
         searchField.stringValue = ""
+        // Let the window appear first, exactly as before: an empty list is cheap to
+        // draw. Filling + laying out the list takes ~150-200ms, and doing it here
+        // (before the first frame) delayed the window itself on every ⌘⌥F.
         results = []
         tableView.reloadData()
-        runSearch("") // empty → lists all (recent first)
+        if recentNotes != nil {
+            // Fill from memory on the next run-loop turn — after the window is up,
+            // with no backend round trip.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.searchField.stringValue.isEmpty, let cached = self.recentNotes else { return }
+                self.results = cached
+                self.tableView.reloadData()
+                if !cached.isEmpty { self.select(row: 0) }
+                self.revalidateRecent()
+            }
+        } else {
+            runSearch("") // empty → lists all (recent first)
+        }
         view.window?.makeFirstResponder(searchField)
+    }
+
+    /// Re-fetch the recent-notes cache in the background (after a save or delete,
+    /// and at launch). Doesn't touch what's on screen.
+    func refreshRecent() {
+        Task { [weak self] in
+            guard let self, let notes = try? await self.sidecar.fetch("") else { return }
+            self.recentNotes = notes
+        }
+    }
+
+    // Safety net on open: if the backend's list differs from the cache (e.g. the
+    // backend was hot-swapped), update it — and the screen, if still unfiltered.
+    // Identical lists change nothing, so there's no redraw.
+    private func revalidateRecent() {
+        Task { [weak self] in
+            guard let self, let notes = try? await self.sidecar.fetch("") else { return }
+            guard notes != self.recentNotes else { return }
+            self.recentNotes = notes
+            guard self.searchField.stringValue.isEmpty, self.view.window?.isVisible == true else { return }
+            let keep = max(0, self.tableView.selectedRow)
+            self.results = notes
+            self.tableView.reloadData()
+            if !notes.isEmpty { self.select(row: min(keep, notes.count - 1)) }
+        }
     }
 
     // MARK: - Search
@@ -176,6 +221,7 @@ final class SearchViewController: NSViewController {
                 let notes = try await sidecar.fetch(query)
                 if Task.isCancelled { return }
                 self.loadingDots.stop()
+                if query.isEmpty { self.recentNotes = notes }
                 self.results = notes
                 self.tableView.reloadData()
                 if notes.isEmpty {
@@ -268,6 +314,7 @@ final class SearchViewController: NSViewController {
             do {
                 try await self.sidecar.delete(id: id)
                 self.runSearch(self.searchField.stringValue, selecting: row)
+                self.refreshRecent() // deleted note must leave the cached recent list
                 self.flashHint("🗑  Deleted “\(key)”", color: .systemRed)
             } catch {
                 // Leave the list as-is; the response logging captures why.
@@ -307,6 +354,17 @@ extension SearchViewController: NSTextFieldDelegate {
     func controlTextDidChange(_ obj: Notification) {
         debounceTask?.cancel()
         let query = searchField.stringValue
+        // Field cleared: the result is the recent-notes list we already hold, so
+        // show it now — no debounce wait, no round trip (revalidated in background).
+        if query.isEmpty, let cached = recentNotes {
+            searchTask?.cancel() // a typed search still in flight mustn't overwrite this
+            loadingDots.stop()
+            results = cached
+            tableView.reloadData()
+            if !cached.isEmpty { select(row: 0) }
+            revalidateRecent()
+            return
+        }
         loadingDots.start() // shown through the debounce wait and the fetch
         debounceTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.typingDebounce)
