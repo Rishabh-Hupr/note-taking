@@ -35,6 +35,9 @@ final class SearchViewController: NSViewController {
     private var hintGeneration = 0
     private var results: [Note] = []
     private var searchTask: Task<Void, Never>?
+    private var debounceTask: Task<Void, Never>?
+    // How long typing must pause before the search runs.
+    private static let typingDebounce: UInt64 = 100_000_000
 
     // Row heights: every row is one line, except the selected one, which grows to
     // fit its value up to `inlineLineLimit` lines. Longer notes show those lines
@@ -290,8 +293,17 @@ final class SearchViewController: NSViewController {
 // MARK: - Text field: live search + key handling
 
 extension SearchViewController: NSTextFieldDelegate {
+    // Debounce: wait until typing pauses before searching. Searching on every
+    // keystroke re-ran the row-grow animation and the preview fade per character,
+    // which made typing feel laggy.
     func controlTextDidChange(_ obj: Notification) {
-        runSearch(searchField.stringValue)
+        debounceTask?.cancel()
+        let query = searchField.stringValue
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.typingDebounce)
+            guard !Task.isCancelled else { return }
+            self?.runSearch(query)
+        }
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
