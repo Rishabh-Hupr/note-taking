@@ -123,10 +123,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func summonFetch() {
         guard let fetchPanel, let searchVC else { return }
+        let t0 = DispatchTime.now().uptimeNanoseconds
         putPanel?.orderOut(nil) // only one overlay at a time
         position(fetchPanel)
         fetchPanel.makeKeyAndOrderFront(nil)
+        let t1 = DispatchTime.now().uptimeNanoseconds
         searchVC.prepareForShow()
+        let t2 = DispatchTime.now().uptimeNanoseconds
+        // Open-latency breakdown in butler-ui.log. The next main-queue turn runs
+        // after this one's display commit, so `firstFrame` ≈ when the filled
+        // window was handed to the screen.
+        DispatchQueue.main.async {
+            let t3 = DispatchTime.now().uptimeNanoseconds
+            func ms(_ a: UInt64, _ b: UInt64) -> String { String(format: "%.1fms", Double(b &- a) / 1e6) }
+            uiLog("⏱ open show=\(ms(t0, t1)) prepare=\(ms(t1, t2)) firstFrame=\(ms(t2, t3)) total=\(ms(t0, t3))")
+        }
     }
 
     private func summonPut() {

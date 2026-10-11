@@ -31,6 +31,13 @@ final class SidecarClient: @unchecked Sendable {
     private var pending: [Int: CheckedContinuation<SidecarResponse, Error>] = [:]
     private var framer = LineFramer()
 
+    // Latency instrumentation: when each in-flight request was written to the pipe.
+    private struct InFlight {
+        let cmd: String
+        let dispatchedAt: UInt64 // DispatchTime nanoseconds
+    }
+    private var inFlight: [Int: InFlight] = [:]
+
     // Relaunch backoff state.
     private var restartDelay: TimeInterval = 0.1
     private let maxRestartDelay: TimeInterval = 5.0
@@ -125,6 +132,7 @@ final class SidecarClient: @unchecked Sendable {
         lock.lock()
         let inflight = pending
         pending.removeAll()
+        inFlight.removeAll()
         framer.reset()         // drop any half-received line so it can't corrupt the next frame
         generation += 1        // ...and ignore anything the dead pipe still delivers
         stdout?.readabilityHandler = nil
@@ -148,17 +156,41 @@ final class SidecarClient: @unchecked Sendable {
         let lines = framer.append(data)
         lock.unlock()
 
-        for line in lines { deliver(line) }
+        let arrivedAt = DispatchTime.now().uptimeNanoseconds
+        for line in lines { deliver(line, arrivedAt: arrivedAt) }
     }
 
-    private func deliver(_ line: Data) {
+    private func deliver(_ line: Data, arrivedAt: UInt64) {
         guard let resp = try? JSONDecoder().decode(SidecarResponse.self, from: line) else { return }
+        let processedAt = DispatchTime.now().uptimeNanoseconds
         lock.lock()
         let cont = pending.removeValue(forKey: resp.id)
+        let request = inFlight.removeValue(forKey: resp.id)
         // A clean response means the sidecar is healthy again — reset backoff.
         restartDelay = 0.1
         lock.unlock()
+        if let request {
+            logLatency(id: resp.id, request: request, resp: resp, bytes: line.count,
+                       arrivedAt: arrivedAt, processedAt: processedAt)
+        }
         cont?.resume(returning: resp)
+    }
+
+    // One line per request in butler-ui.log, e.g.
+    //   ⏱ id=7 cmd=fetch notes=200 bytes=81234 roundtrip=3.1ms processing=0.6ms total=3.7ms
+    // roundtrip  = dispatch → full reply received (pipe both ways + backend work)
+    // processing = reply received → decoded and ready for the UI
+    // total      = the two together
+    private func logLatency(id: Int, request: InFlight, resp: SidecarResponse, bytes: Int,
+                            arrivedAt: UInt64, processedAt: UInt64) {
+        func ms(_ from: UInt64, _ to: UInt64) -> String {
+            String(format: "%.1fms", Double(to &- from) / 1_000_000)
+        }
+        let notes = resp.notes.map { " notes=\($0.count)" } ?? ""
+        uiLog("⏱ id=\(id) cmd=\(request.cmd)\(notes) bytes=\(bytes)"
+              + " roundtrip=\(ms(request.dispatchedAt, arrivedAt))"
+              + " processing=\(ms(arrivedAt, processedAt))"
+              + " total=\(ms(request.dispatchedAt, processedAt))")
     }
 
     // MARK: - Requests
@@ -172,9 +204,10 @@ final class SidecarClient: @unchecked Sendable {
         return (id, stdin)
     }
 
-    private func registerPending(_ id: Int, _ cont: CheckedContinuation<SidecarResponse, Error>) {
+    private func registerPending(_ id: Int, cmd: String, _ cont: CheckedContinuation<SidecarResponse, Error>) {
         lock.lock(); defer { lock.unlock() }
         pending[id] = cont
+        inFlight[id] = InFlight(cmd: cmd, dispatchedAt: DispatchTime.now().uptimeNanoseconds)
     }
 
     private func send(_ makeRequest: (Int) -> SidecarRequest) async throws -> SidecarResponse {
@@ -186,6 +219,7 @@ final class SidecarClient: @unchecked Sendable {
         if let k = request.key { detail += " key=\(k)" }
         if let q = request.query { detail += " query=\(q)" }
         if let nid = request.noteID { detail += " note_id=\(nid)" }
+        uiLog("-------------") // one separator per request, like app.log
         uiLog("→ req id=\(id) cmd=\(request.cmd)\(detail)")
 
         do {
@@ -194,7 +228,7 @@ final class SidecarClient: @unchecked Sendable {
                     cont.resume(throwing: SidecarError.notRunning)
                     return
                 }
-                registerPending(id, cont)
+                registerPending(id, cmd: request.cmd, cont)
 
                 // Safety net: never let a caller hang if a response is lost — a crash,
                 // a garbled/undecodable frame, or a register/terminate race.
@@ -229,6 +263,7 @@ final class SidecarClient: @unchecked Sendable {
     private func failPending(_ id: Int, _ error: Error) {
         lock.lock()
         let cont = pending.removeValue(forKey: id)
+        inFlight.removeValue(forKey: id)
         lock.unlock()
         cont?.resume(throwing: error)
     }
