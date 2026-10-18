@@ -3,6 +3,14 @@ import AppKit
 // Pure geometry/sizing rules for the overlays, kept free of view state so they're
 // deterministic and unit-testable. The views call into these.
 enum OverlayLayout {
+    /// Minimum distance kept between any overlay and the screen's visible edges.
+    static let screenMargin: CGFloat = 8
+    /// Gap between the search window and the side preview.
+    static let previewGap: CGFloat = 10
+    /// Extra height so text that exactly fits isn't clipped or given a scroller
+    /// by rounding (and covers a label cell's own insets).
+    static let lineSlack: CGFloat = 2
+
     /// Height of `text` wrapped at `width` in `font`.
     static func textHeight(_ text: String, width: CGFloat, font: NSFont) -> CGFloat {
         ceil((text as NSString).boundingRect(
@@ -24,10 +32,17 @@ enum OverlayLayout {
         textHeight > lineHeight * CGFloat(limit) + 1
     }
 
+    /// Height that fits `contentHeight` but at most `maxLines` lines, plus
+    /// `lineSlack`. Used for the preview's text area (which scrolls past the cap)
+    /// and its key (which ends in "…" past the cap), so both cap the same way.
+    static func cappedToLines(_ contentHeight: CGFloat, lineHeight: CGFloat, maxLines: Int) -> CGFloat {
+        min(ceil(contentHeight), ceil(lineHeight * CGFloat(maxLines))) + lineSlack
+    }
+
     /// Preview text area: fits the text up to `maxLines`, then stays at that cap
-    /// (and scrolls). +2pt slack so text that just fits doesn't get a scroller.
+    /// (and scrolls).
     static func previewTextAreaHeight(textHeight: CGFloat, lineHeight: CGFloat, maxLines: Int) -> CGFloat {
-        min(textHeight + 2, ceil(lineHeight * CGFloat(maxLines)))
+        cappedToLines(textHeight, lineHeight: lineHeight, maxLines: maxLines)
     }
 
     /// Horizontal placement for the preview beside `parent`: on whichever side has
@@ -37,7 +52,7 @@ enum OverlayLayout {
     /// animate in from (toward the parent).
     static func previewHorizontal(
         parent: NSRect, visible: NSRect, preferredWidth: CGFloat, minWidth: CGFloat,
-        gap: CGFloat = 10, margin: CGFloat = 8
+        gap: CGFloat = previewGap, margin: CGFloat = screenMargin
     ) -> (x: CGFloat, width: CGFloat, slideFrom: CGFloat) {
         let rightRoom = visible.maxX - margin - (parent.maxX + gap)
         let leftRoom = parent.minX - gap - (visible.minX + margin)
@@ -47,11 +62,14 @@ enum OverlayLayout {
         var x = useRight ? parent.maxX + gap : parent.minX - gap - width
         // Only when even minWidth doesn't fit does it overlap the parent.
         x = min(max(x, visible.minX + margin), visible.maxX - width - margin)
-        return (x, width, useRight ? -8 : 8) // slide < gap: never touches the parent
+        // Slide in from just under the gap away, so even the first frame never
+        // touches the search window.
+        let slide = gap * 0.8
+        return (x, width, useRight ? -slide : slide)
     }
 
     /// Vertical placement: top-aligned with `anchor` (the selected row), clamped.
-    static func previewY(anchor: NSRect, height: CGFloat, visible: NSRect, margin: CGFloat = 8) -> CGFloat {
+    static func previewY(anchor: NSRect, height: CGFloat, visible: NSRect, margin: CGFloat = screenMargin) -> CGFloat {
         min(max(anchor.maxY - height, visible.minY + margin), visible.maxY - height - margin)
     }
 
@@ -67,7 +85,7 @@ enum OverlayLayout {
     }
 
     /// Default placement: centered horizontally, a bit above center, clamped.
-    static func defaultOrigin(size: NSSize, visible vf: NSRect, margin: CGFloat = 8) -> NSPoint {
+    static func defaultOrigin(size: NSSize, visible vf: NSRect, margin: CGFloat = screenMargin) -> NSPoint {
         let x = vf.midX - size.width / 2
         let y = vf.midY + vf.height * 0.12
         return NSPoint(

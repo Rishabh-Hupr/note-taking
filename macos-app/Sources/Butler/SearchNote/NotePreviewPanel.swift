@@ -9,7 +9,6 @@ final class NotePreviewPanel: NSPanel {
     static let preferredWidth: CGFloat = 420
     static let minWidth: CGFloat = 300
     private let padding: CGFloat = 16
-    private let headerHeight: CGFloat = 20          // one line of key
     private let maxKeyLines = 3
     private let keyFont = NSFont.systemFont(ofSize: 14, weight: .semibold)
     private var keyHeightConstraint: NSLayoutConstraint?
@@ -23,6 +22,8 @@ final class NotePreviewPanel: NSPanel {
     }
     private let textFont = NSFont.systemFont(ofSize: 12)
     private lazy var lineHeight = NSLayoutManager().defaultLineHeight(for: textFont)
+    private lazy var keyLineHeight = NSLayoutManager().defaultLineHeight(for: keyFont)
+    private var oneKeyLine: CGFloat { ceil(keyLineHeight) } // the header's minimum height
 
     private let keyLabel = NSTextField(labelWithString: "")
     private let scrollView = NSScrollView()
@@ -92,7 +93,7 @@ final class NotePreviewPanel: NSPanel {
 
         effect.addSubview(keyLabel)
         effect.addSubview(scrollView)
-        let keyHeight = keyLabel.heightAnchor.constraint(equalToConstant: headerHeight)
+        let keyHeight = keyLabel.heightAnchor.constraint(equalToConstant: oneKeyLine)
         keyHeightConstraint = keyHeight
         NSLayoutConstraint.activate([
             keyLabel.topAnchor.constraint(equalTo: effect.topAnchor, constant: padding),
@@ -134,14 +135,14 @@ final class NotePreviewPanel: NSPanel {
         let contentWidth = width - padding * 2
         // Measured by the label's own cell (its insets and padding make it wrap a
         // little narrower than a plain text measurement at the same width).
-        let keyLineHeight = NSLayoutManager().defaultLineHeight(for: keyFont)
         let fitted = keyLabel.cell?.cellSize(forBounds: NSRect(
-            x: 0, y: 0, width: contentWidth, height: .greatestFiniteMagnitude)).height ?? headerHeight
-        let keyHeight = max(headerHeight, min(ceil(fitted), ceil(keyLineHeight * CGFloat(maxKeyLines)) + 2))
+            x: 0, y: 0, width: contentWidth, height: .greatestFiniteMagnitude)).height ?? oneKeyLine
+        let keyHeight = max(oneKeyLine,
+                            OverlayLayout.cappedToLines(fitted, lineHeight: keyLineHeight, maxLines: maxKeyLines))
         keyLabel.preferredMaxLayoutWidth = contentWidth
         keyHeightConstraint?.constant = keyHeight
         let chrome = padding * 2 + keyHeight + headerSpacing
-        let height = min(textAreaHeight + chrome, visible.height - 16)
+        let height = min(textAreaHeight + chrome, visible.height - 2 * OverlayLayout.screenMargin)
         let y = OverlayLayout.previewY(anchor: anchor, height: height, visible: visible)
         let target = NSRect(x: x, y: y, width: width, height: height)
 

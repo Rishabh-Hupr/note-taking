@@ -49,13 +49,13 @@ import Testing
     @Test func previewFitsShortText() {
         let h = OverlayLayout.textHeight(lines(10), width: 388, font: font)
         let area = OverlayLayout.previewTextAreaHeight(textHeight: h, lineHeight: lineHeight, maxLines: 50)
-        #expect(area == h + 2)
+        #expect(area == h + OverlayLayout.lineSlack)
     }
 
     @Test func previewCapsAtMaxLines() {
         let h = OverlayLayout.textHeight(lines(200), width: 388, font: font)
         let area = OverlayLayout.previewTextAreaHeight(textHeight: h, lineHeight: lineHeight, maxLines: 50)
-        #expect(area == ceil(lineHeight * 50))
+        #expect(area == ceil(lineHeight * 50) + OverlayLayout.lineSlack)
         #expect(area < h)
     }
 
