@@ -109,19 +109,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // "Last-Note Reminder ▸ Off / Every 30 minutes / …", checkmark on the current one.
     private func makeLastNoteReminderMenu() -> NSMenuItem {
         let submenu = NSMenu()
-        if let override = LastSavedHint.environmentOverride() {
-            // The env var wins over the menu, so say so instead of a misleading tick.
+        submenu.autoenablesItems = false // we decide which entries are enabled
+        let override = LastSavedHint.environmentOverride()
+        if let override {
+            // The env var wins over the menu, so say so — and disable the choices
+            // (with no tick) rather than show one that isn't in effect.
             let note = NSMenuItem(title: "Overridden: every \(Int(override))s (BUTLER_HINT_INTERVAL)",
                                   action: nil, keyEquivalent: "")
             note.isEnabled = false
             submenu.addItem(note)
             submenu.addItem(.separator())
         }
-        let current = LastSavedHint.environmentOverride() == nil ? LastSavedHint.interval() : -1
+        let current: TimeInterval? = override == nil ? LastSavedHint.interval() : nil
         for (index, choice) in LastSavedHint.choices.enumerated() {
             let entry = NSMenuItem(title: choice.title, action: #selector(selectLastNoteReminder(_:)), keyEquivalent: "")
             entry.target = self
             entry.tag = index
+            entry.isEnabled = override == nil
             entry.state = choice.seconds == current ? .on : .off
             submenu.addItem(entry)
         }
@@ -131,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func selectLastNoteReminder(_ sender: NSMenuItem) {
+        guard LastSavedHint.environmentOverride() == nil else { return } // choices are disabled then anyway
         let choice = LastSavedHint.choices[sender.tag]
         LastSavedHint.setInterval(choice.seconds)
         sender.menu?.items.forEach { $0.state = $0 === sender ? .on : .off }

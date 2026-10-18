@@ -12,6 +12,9 @@ enum LastSavedHint {
         ("Every 4 hours", 4 * 60 * 60),
     ]
     static let defaultInterval: TimeInterval = 2 * 60 * 60
+    /// Longest interval accepted (from the menu store or the env var). Keeps the
+    /// value finite and small enough to convert to nanoseconds without trapping.
+    static let maxInterval: TimeInterval = 7 * 24 * 60 * 60
     static let defaultsKey = "butler.lastNoteHintInterval"
 
     /// The interval chosen in the menu (saved), 0 if turned off.
@@ -20,13 +23,16 @@ enum LastSavedHint {
                          environment: [String: String] = ProcessInfo.processInfo.environment) -> TimeInterval {
         if let seconds = environmentOverride(environment) { return seconds }
         guard defaults.object(forKey: defaultsKey) != nil else { return defaultInterval }
-        return max(0, defaults.double(forKey: defaultsKey))
+        let saved = defaults.double(forKey: defaultsKey)
+        guard saved.isFinite, saved >= 0 else { return defaultInterval }
+        return min(saved, maxInterval)
     }
 
     /// BUTLER_HINT_INTERVAL in seconds, if set (testing aid; beats the menu choice).
     static func environmentOverride(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> TimeInterval? {
-        guard let raw = environment["BUTLER_HINT_INTERVAL"], let seconds = TimeInterval(raw), seconds > 0 else { return nil }
-        return seconds
+        guard let raw = environment["BUTLER_HINT_INTERVAL"], let seconds = TimeInterval(raw),
+              seconds.isFinite, seconds > 0 else { return nil }
+        return min(seconds, maxInterval)
     }
 
     static func setInterval(_ seconds: TimeInterval, defaults: UserDefaults = .standard) {

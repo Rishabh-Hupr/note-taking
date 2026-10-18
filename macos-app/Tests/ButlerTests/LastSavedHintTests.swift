@@ -62,6 +62,17 @@ import Testing
         #expect(LastSavedHint.environmentOverride(["BUTLER_HINT_INTERVAL": "nope"]) == nil)
     }
 
+    @Test func absurdIntervalsAreRejectedOrClamped() {
+        // Huge / infinite values would trap when converted to nanoseconds.
+        #expect(LastSavedHint.environmentOverride(["BUTLER_HINT_INTERVAL": "inf"]) == nil)
+        #expect(LastSavedHint.environmentOverride(["BUTLER_HINT_INTERVAL": "1e12"]) == LastSavedHint.maxInterval)
+        let d = freshDefaults()
+        d.set(Double.infinity, forKey: LastSavedHint.defaultsKey)
+        #expect(LastSavedHint.interval(defaults: d, environment: [:]) == LastSavedHint.defaultInterval)
+        d.set(1e12, forKey: LastSavedHint.defaultsKey)
+        #expect(LastSavedHint.interval(defaults: d, environment: [:]) == LastSavedHint.maxInterval)
+    }
+
     @Test func menuOffersOffAndTheDefault() {
         let seconds = LastSavedHint.choices.map(\.seconds)
         #expect(seconds.contains(0))
