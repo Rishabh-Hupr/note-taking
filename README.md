@@ -116,8 +116,8 @@ Each request logs its latency to `butler-ui.log` (`~/.butler/`, or `test-build/`
 ```
 Logs live in the data dir: `app.log` (backend) and `butler-ui.log` (app). Each rolls
 over at 1MB and keeps 3 backups (`.1`–`.3`); they're readable only by you and never
-contain note text. Butler keeps the logs open, so delete them only while it isn't
-running (or relaunch afterwards).
+contain note text. Deleting a log while Butler runs is fine — it starts a fresh one
+within a few seconds.
 
 `roundtrip` = request sent → full reply received (pipe + backend); `processing` =
 reply → decoded for the UI. Each ⌘⌥F also logs how long opening took (format):

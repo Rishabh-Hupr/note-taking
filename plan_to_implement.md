@@ -115,13 +115,19 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 - **Log rotation:** Go `helpers` logger (app.log) and Swift `RotatingLogFile`
   (butler-ui.log, installed as stderr+stdout via dup2 so NSLog/crashes land in it)
   rotate at 1MB keeping 3 backups; files 0600. Both keep the file open and track its
-  size with a counter (no stat/reopen per line). After a rotation Go re-points its
-  stderr at the fresh app.log so panic traces don't land in a rotated file. Launch scripts append (`>>`) instead of
+  size with a counter (no stat/reopen per line); every 5s they check the file at the
+  path is still theirs and reopen if it was deleted by hand. Rotation moves the log
+  aside and opens the fresh one *before* shifting backups, so a failed rotation loses
+  nothing (retried after 60s). Go owns app.log end to end: asked via
+  `BUTLER_STDERR_TO_LOG=1` (set by the app), it also points its stderr at the log,
+  after every rotation too; run by hand it keeps its own stderr. Launch scripts append (`>>`) instead of
   truncating. Put/delete log key + length, never note text (was review #5).
 - **Editing shortcuts:** one table, `EditingShortcuts.all`, builds both the Edit menu
   and `OverlayPanel.performKeyEquivalent`'s dispatch (menu key equivalents never fire
   — the panels are non-activating), so they can't drift. Falls back to the physical
   key on non-Latin layouts; value box `allowsUndo`. Unit-tested.
+- **Scripts:** both launch scripts source `scripts/butler-common.sh` (`stop_butler`),
+  so the stop logic lives once.
 - **Preview side:** `previewHorizontal` picks the side with more room (right on ties).
 - **Preview bounds:** a wide key stretched the panel (1193pt vs 420) over the search
   window / off-screen — a single-line label resists compression and widens its

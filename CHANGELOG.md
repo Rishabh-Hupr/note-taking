@@ -6,7 +6,8 @@
 - **Logs no longer grow forever.** `app.log` and `butler-ui.log` each roll over at
   1MB, keeping the 3 previous files (`.1`–`.3`), so they stay under ~4MB each.
   `butler-ui.log` also keeps its history across launches now instead of being
-  wiped each time.
+  wiped each time. A failed rollover never loses old logs, and deleting a log
+  while Butler runs is fine — a fresh one starts within a few seconds.
 
 ### Security
 - **Your note text is no longer written to the logs** — saves and deletes log the
