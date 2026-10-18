@@ -6,15 +6,16 @@ import (
 	"Go-Butler/dao"
 	"Go-Butler/dao/operations"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-func newMaintenanceDB(t *testing.T) (*sql.DB, string) {
+func newTestMaintainer(t *testing.T) (*maintainer, *sql.DB) {
 	t.Helper()
 	dir := t.TempDir()
 	n, err := NewNotesDatabase(dir)
@@ -22,7 +23,7 @@ func newMaintenanceDB(t *testing.T) (*sql.DB, string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { n.Close() })
-	return n.DB(), dir
+	return newMaintainer(n.DB(), dir), n.DB()
 }
 
 func mustPutNote(t *testing.T, db *sql.DB, key, value string) {
@@ -32,21 +33,40 @@ func mustPutNote(t *testing.T, db *sql.DB, key, value string) {
 	}
 }
 
-// A backup is a standalone copy: notes and search index both work when opened.
-func TestMaintainIfDue_BackupIsSearchable(t *testing.T) {
-	db, dir := newMaintenanceDB(t)
+func backupName(at time.Time) string {
+	return backupPrefix + at.UTC().Format(backupTimeLayout) + backupSuffix
+}
+
+func writeFakeBackups(t *testing.T, dir string, names ...string) {
+	t.Helper()
+	os.MkdirAll(dir, 0700)
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+var t0 = time.Date(2026, 10, 18, 9, 30, 0, 0, time.UTC)
+
+// A backup is a standalone copy: notes and search both work when it's opened.
+func TestRunIfDue_BackupIsSearchableAndPrivate(t *testing.T) {
+	m, db := newTestMaintainer(t)
 	mustPutNote(t, db, "wifi", "hunter2 password")
-	now := time.Date(2026, 10, 18, 9, 30, 0, 0, time.Local)
 
-	maintainIfDue(db, dir, now)
+	m.runIfDue(t0)
 
-	backupDir := filepath.Join(dir, backupDirName)
-	backups := listBackups(backupDir)
+	backups := listBackups(m.backupDir)
 	if len(backups) != 1 || backups[0] != "notes-20261018-093000.db" {
 		t.Fatalf("backups = %v", backups)
 	}
-	// Open the backup itself, as it would be used after a restore.
-	b, err := sql.Open("sqlite3", filepath.Join(backupDir, backups[0]))
+	path := filepath.Join(m.backupDir, backups[0])
+	b, err := sql.Open("sqlite3", path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,64 +75,158 @@ func TestMaintainIfDue_BackupIsSearchable(t *testing.T) {
 	if err != nil || len(notes) != 1 || notes[0].Key != "wifi" {
 		t.Fatalf("search in backup = %+v, %v", notes, err)
 	}
-	if info, _ := os.Stat(filepath.Join(backupDir, backups[0])); info.Mode().Perm() != 0600 {
+	if info, _ := os.Stat(path); info.Mode().Perm() != 0600 {
 		t.Errorf("backup mode = %v, want 0600", info.Mode().Perm())
 	}
-	if _, err := os.Stat(filepath.Join(backupDir, backups[0]+".partial")); !os.IsNotExist(err) {
+	if exists(path + partialSuffix) {
 		t.Error("partial file left behind")
 	}
 }
 
-func TestMaintainIfDue_SkipsUntilIntervalPassed(t *testing.T) {
-	db, dir := newMaintenanceDB(t)
-	start := time.Date(2026, 10, 18, 9, 0, 0, 0, time.Local)
-
-	maintainIfDue(db, dir, start)
-	maintainIfDue(db, dir, start.Add(maintenanceInterval-time.Minute))
-	if got := len(listBackups(filepath.Join(dir, backupDirName))); got != 1 {
+func TestRunIfDue_SkipsUntilIntervalPassed(t *testing.T) {
+	m, _ := newTestMaintainer(t)
+	m.runIfDue(t0)
+	m.runIfDue(t0.Add(backupInterval - time.Minute))
+	if got := len(listBackups(m.backupDir)); got != 1 {
 		t.Fatalf("before the interval: %d backups, want 1", got)
 	}
-	maintainIfDue(db, dir, start.Add(maintenanceInterval))
-	if got := len(listBackups(filepath.Join(dir, backupDirName))); got != 2 {
+	m.runIfDue(t0.Add(backupInterval))
+	if got := len(listBackups(m.backupDir)); got != 2 {
 		t.Fatalf("after the interval: %d backups, want 2", got)
 	}
 }
 
-func TestMaintainIfDue_KeepsNewest(t *testing.T) {
-	db, dir := newMaintenanceDB(t)
-	start := time.Date(2026, 10, 1, 9, 0, 0, 0, time.Local)
+func TestRunIfDue_KeepsNewest(t *testing.T) {
+	m, _ := newTestMaintainer(t)
 	for i := 0; i < backupsToKeep+3; i++ {
-		maintainIfDue(db, dir, start.Add(time.Duration(i)*maintenanceInterval))
+		m.runIfDue(t0.Add(time.Duration(i) * backupInterval))
 	}
-	backups := listBackups(filepath.Join(dir, backupDirName))
+	backups := listBackups(m.backupDir)
 	if len(backups) != backupsToKeep {
 		t.Fatalf("%d backups kept, want %d", len(backups), backupsToKeep)
 	}
-	newest := start.Add(time.Duration(backupsToKeep+2) * maintenanceInterval)
-	if want := backupPrefix + newest.Format(backupTimeLayout) + backupSuffix; backups[len(backups)-1] != want {
+	if want := backupName(t0.Add(time.Duration(backupsToKeep+2) * backupInterval)); backups[len(backups)-1] != want {
 		t.Errorf("newest = %s, want %s", backups[len(backups)-1], want)
 	}
 }
 
-// Files that aren't backups (the user's own copies, leftovers) are never deleted.
+// A copy that fails its check must never be kept, and must not cost any of the
+// existing backups; the next attempt waits retryAfterFailure.
+func TestRunIfDue_FailedCheckKeepsExistingBackups(t *testing.T) {
+	m, _ := newTestMaintainer(t)
+	var old []string
+	for i := 0; i < backupsToKeep; i++ {
+		old = append(old, backupName(t0.Add(-time.Duration(backupsToKeep-i)*backupInterval)))
+	}
+	writeFakeBackups(t, m.backupDir, old...)
+	checks := 0
+	m.checkCopy = func(string) (bool, error) { checks++; return false, errors.New("corrupt") }
+
+	m.runIfDue(t0)
+
+	if got := listBackups(m.backupDir); fmt.Sprint(got) != fmt.Sprint(old) {
+		t.Errorf("backups changed after a failed check: %v", got)
+	}
+	if exists(filepath.Join(m.backupDir, backupName(t0)+partialSuffix)) {
+		t.Error("rejected copy left behind")
+	}
+	m.runIfDue(t0.Add(retryAfterFailure - time.Minute))
+	if checks != 1 {
+		t.Errorf("retried before retryAfterFailure: %d attempts", checks)
+	}
+	m.runIfDue(t0.Add(retryAfterFailure))
+	if checks != 2 {
+		t.Errorf("no retry after retryAfterFailure: %d attempts", checks)
+	}
+}
+
+// If the search index has drifted from the notes, the backup is still made (with
+// a rebuilt index) and the live index is repaired.
+func TestRunIfDue_DriftedIndexIsBackedUpAndRepaired(t *testing.T) {
+	m, db := newTestMaintainer(t)
+	mustPutNote(t, db, "indexed", "alpha")
+	// Insert a note behind the trigger's back, so the index misses it.
+	if _, err := db.Exec("DROP TRIGGER notes_ai"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO notes(key, value) VALUES('missed', 'zebra')"); err != nil {
+		t.Fatal(err)
+	}
+	if ftsInSync(db) {
+		t.Fatal("setup: index should be out of sync")
+	}
+
+	m.runIfDue(t0)
+
+	backups := listBackups(m.backupDir)
+	if len(backups) != 1 {
+		t.Fatalf("drifted index blocked the backup: %v", backups)
+	}
+	b, _ := sql.Open("sqlite3", filepath.Join(m.backupDir, backups[0]))
+	defer b.Close()
+	if notes, err := operations.FetchNote(b, "zebr"); err != nil || len(notes) != 1 {
+		t.Errorf("backup search = %+v, %v", notes, err)
+	}
+	if notes, err := operations.FetchNote(db, "zebr"); err != nil || len(notes) != 1 {
+		t.Errorf("live search not repaired = %+v, %v", notes, err)
+	}
+}
+
+// A backup dated in the future (wrong clock) must not stop backups, and is
+// pruned first.
+func TestRunIfDue_FutureDatedBackupDoesNotBlock(t *testing.T) {
+	m, _ := newTestMaintainer(t)
+	future := backupName(t0.AddDate(1, 0, 0))
+	writeFakeBackups(t, m.backupDir, future)
+
+	m.runIfDue(t0)
+	if !exists(filepath.Join(m.backupDir, backupName(t0))) {
+		t.Fatal("future-dated backup blocked a due backup")
+	}
+	for i := 1; i < backupsToKeep; i++ {
+		m.runIfDue(t0.Add(time.Duration(i) * backupInterval))
+	}
+	if exists(filepath.Join(m.backupDir, future)) {
+		t.Error("future-dated backup survived pruning")
+	}
+	if got := len(listBackups(m.backupDir)); got != backupsToKeep {
+		t.Errorf("%d backups, want %d", got, backupsToKeep)
+	}
+}
+
+func TestRunIfDue_TightensBackupFolderAndClearsLeftovers(t *testing.T) {
+	m, _ := newTestMaintainer(t)
+	os.MkdirAll(m.backupDir, 0755)
+	leftover := filepath.Join(m.backupDir, "notes-20261001-000000.db"+partialSuffix)
+	os.WriteFile(leftover, nil, 0644)
+
+	m.runIfDue(t0)
+
+	if info, _ := os.Stat(m.backupDir); info.Mode().Perm() != 0700 {
+		t.Errorf("backup folder mode = %v, want 0700", info.Mode().Perm())
+	}
+	if exists(leftover) {
+		t.Error("leftover .partial not removed")
+	}
+}
+
+// Files that aren't backups (your own copies, other names) are never deleted.
 func TestPruneBackups_IgnoresOtherFiles(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"notes-20261001-090000.db", "notes-20261003-090000.db", "my-copy.db", "notes-x.db"} {
-		os.WriteFile(filepath.Join(dir, name), nil, 0600)
-	}
-	pruneBackups(dir, 1)
+	writeFakeBackups(t, dir, "notes-20261001-090000.db", "notes-20261003-090000.db", "my-copy.db", "notes-x.db")
+	pruneBackups(dir, 1, t0)
 	for _, name := range []string{"notes-20261003-090000.db", "my-copy.db", "notes-x.db"} {
-		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+		if !exists(filepath.Join(dir, name)) {
 			t.Errorf("%s was deleted", name)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(dir, "notes-20261001-090000.db")); !os.IsNotExist(err) {
+	if exists(filepath.Join(dir, "notes-20261001-090000.db")) {
 		t.Error("older backup not pruned")
 	}
 }
 
 func TestVacuumIfFragmented(t *testing.T) {
-	db, _ := newMaintenanceDB(t)
+	_, db := newTestMaintainer(t)
 	big := fmt.Sprintf("%0100000d", 0) // ~100KB per note, so deletes free many pages
 	for i := 0; i < 5; i++ {
 		mustPutNote(t, db, fmt.Sprintf("k%d", i), big)
@@ -133,28 +247,46 @@ func TestVacuumIfFragmented(t *testing.T) {
 	}
 }
 
-func TestOptimizeFTS_KeepsSearchWorking(t *testing.T) {
-	db, _ := newMaintenanceDB(t)
-	for i := 0; i < 20; i++ {
-		mustPutNote(t, db, fmt.Sprintf("note%d", i), "alpha beta")
+// Maintenance runs alongside requests: saves and searches during a pass must
+// all succeed.
+func TestRunIfDue_ConcurrentRequestsSucceed(t *testing.T) {
+	m, db := newTestMaintainer(t)
+	big := fmt.Sprintf("%050000d", 0)
+	for i := 0; i < 40; i++ {
+		mustPutNote(t, db, fmt.Sprintf("seed%d", i), big)
 	}
-	if err := optimizeFTS(db); err != nil {
-		t.Fatal(err)
-	}
-	notes, err := operations.FetchNote(db, "alph")
-	if err != nil || len(notes) != 20 {
-		t.Fatalf("after optimize: %d notes, %v", len(notes), err)
-	}
-}
+	db.Exec("DELETE FROM notes WHERE id % 2 = 0") // fragment it, so VACUUM runs too
 
-func TestReadLines_SkipsBlankLinesAndClosesAtEOF(t *testing.T) {
-	lines := make(chan []byte)
-	go readLines(strings.NewReader("{\"id\":1}\n\n  \n{\"id\":2}"), lines)
-	var got []string
-	for line := range lines {
-		got = append(got, string(line))
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	errs := make(chan error, 1000)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if err := operations.PutNote(db, dao.Note{Key: fmt.Sprintf("live%d", i), Value: "during maintenance"}); err != nil {
+				errs <- fmt.Errorf("put: %w", err)
+			}
+			if _, err := operations.FetchNote(db, "seed"); err != nil {
+				errs <- fmt.Errorf("fetch: %w", err)
+			}
+		}
+	}()
+	for i := 0; i < 3; i++ {
+		m.runIfDue(t0.Add(time.Duration(i) * backupInterval))
 	}
-	if len(got) != 2 || got[0] != `{"id":1}` || got[1] != `{"id":2}` {
-		t.Errorf("lines = %q", got)
+	close(stop)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	if got := len(listBackups(m.backupDir)); got != 3 {
+		t.Errorf("%d backups, want 3", got)
 	}
 }

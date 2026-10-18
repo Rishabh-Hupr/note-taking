@@ -15,12 +15,15 @@ Tests live with the code they cover: `dao/operations` (put/fetch/show/like),
 `maintenance.go`: backups, pruning, VACUUM, FTS optimize).
 
 ## Maintenance
-`maintenance.go` runs from the main loop, between requests, so it never races a
-write. It first runs 30s after start, then checks hourly; it does the work only
-when the newest backup in `<data dir>/backups/` is 2+ days old:
-1. FTS5 `optimize`.
-2. `VACUUM` if ≥20% of pages are free.
-3. `VACUUM INTO` a new backup, checked (`quick_check` + FTS5 `integrity-check`)
-   before it's renamed into place, then prune to the newest 7.
+`maintenance.go` runs backups and upkeep on a background goroutine, started from
+`main`. The constants at the top of the file set the schedule; the values are
+listed in [RUNBOOK.md](../RUNBOOK.md#backups). A pass:
+1. Writes a backup first: `VACUUM INTO` a `.partial` file, which must pass
+   `quick_check`. If only its search index is out of sync, the index is rebuilt.
+   Then it's renamed into place and old backups are pruned.
+2. Tidies the live DB: FTS5 `rebuild` if the copy showed drift, otherwise
+   `optimize`; then `VACUUM` (plus a WAL truncate) when fragmented.
 
+Searches aren't blocked (WAL). Saves wait on a write step through go-sqlite3's
+default 5s busy timeout. `TestRunIfDue_ConcurrentRequestsSucceed` covers this.
 Restoring is manual; see [RUNBOOK.md](../RUNBOOK.md).

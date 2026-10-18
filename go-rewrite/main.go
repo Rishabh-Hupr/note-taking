@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // dataDir resolves the Butler data directory: $BUTLER_DATA_DIR, else ~/.butler.
@@ -44,44 +43,28 @@ func main() {
 	defer notesDB.Close()
 	db := notesDB.DB()
 
-	// Requests and maintenance share this one loop, so upkeep runs between
-	// requests and never races a put or delete.
-	lines := make(chan []byte)
-	go readLines(os.Stdin, lines)
+	// Backups and upkeep run in the background: searches carry on during them
+	// (WAL), and a save waits at most for the write step in progress.
+	go newMaintainer(db, dir).run()
+
+	// bufio.Reader (not Scanner) so an arbitrarily long request line grows the
+	// buffer instead of erroring out and killing the sidecar.
+	in := bufio.NewReader(os.Stdin)
 	out := bufio.NewWriter(os.Stdout)
-	maintenance := time.NewTimer(firstMaintenanceDelay)
-	defer maintenance.Stop()
 
-	for {
-		select {
-		case line, ok := <-lines:
-			if !ok {
-				return // stdin closed (frontend exited) — normal shutdown
-			}
-			serveLine(db, out, line)
-		case <-maintenance.C:
-			maintainIfDue(db, dir, time.Now())
-			maintenance.Reset(maintenanceCheckEvery)
-		}
-	}
-}
-
-// readLines sends each non-empty line from r to lines, closing it at EOF.
-// bufio.Reader (not Scanner) so an arbitrarily long request line grows the
-// buffer instead of erroring out and killing the sidecar.
-func readLines(r io.Reader, lines chan<- []byte) {
-	defer close(lines)
-	in := bufio.NewReader(r)
 	for {
 		line, err := in.ReadBytes('\n')
+
 		if line = bytes.TrimSpace(line); len(line) > 0 {
-			lines <- line
+			serveLine(db, out, line)
 		}
+
 		if err != nil {
+			// io.EOF = stdin closed (frontend exited) — normal shutdown.
 			if err != io.EOF {
 				helpers.LogIt(fmt.Sprintf("stdin read error: %v", err))
 			}
-			return
+			break
 		}
 	}
 }
