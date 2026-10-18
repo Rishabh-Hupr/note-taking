@@ -20,7 +20,9 @@ capture something. Change how often (or turn it off) from **📒 → Last-Note R
 Both windows can be dragged anywhere and reopen where you left them. Search shows
 up to 200 notes at a time (most recent first); type to find older ones.
 
-Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`).
+Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`). Every 2
+days they're backed up to `~/.butler/backups/` (newest 7 kept), and the database is
+tidied up at the same time. To restore a backup, follow [RUNBOOK.md](RUNBOOK.md).
 
 ## Architecture
 
@@ -128,7 +130,8 @@ reply → decoded for the UI. Each ⌘⌥F also logs how long opening took (form
 ## How data flows
 See [DATA_FLOW.md](DATA_FLOW.md) for Mermaid diagrams of every flow: the components,
 the wire protocol, opening search, typing, saving, deleting, the recent-notes cache,
-the backend pipeline, crash recovery, logging and the menu-bar hint. Update it in
+the backend pipeline, database upkeep and backups, crash recovery, logging and the
+menu-bar hint. Update it in
 the same commit as any change to one of those flows.
 
 ## Next plans

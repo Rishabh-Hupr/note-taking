@@ -32,6 +32,7 @@ flowchart LR
     end
 
     db[("~/.butler/notes.db<br/>SQLite + FTS5")]
+    backups[("~/.butler/backups/<br/>newest 7")]
 
     user --> hotkeys
     user --> menu
@@ -43,6 +44,8 @@ flowchart LR
     client -- "JSON line on stdin" --> loop
     loop -- "JSON line on stdout" --> client
     loop --> proc --> ops --> db
+    loop -- "every 2 days: maintainIfDue" --> db
+    db -.->|VACUUM INTO| backups
     client -.-> uilog
     search -.-> uilog
     ops -.-> golog
@@ -209,7 +212,11 @@ hot-swap.
 
 ```mermaid
 flowchart TD
-    stdin[/"stdin line"/] --> serve["main.serveLine<br/>(recovers panics per line)"]
+    stdin[/"stdin"/] --> reader["readLines goroutine<br/>(one line at a time, skips blanks)"]
+    reader -->|lines channel| sel{"main loop select"}
+    timer(["maintenance timer<br/>30s after start, then hourly"]) --> sel
+    sel -->|timer| maint["maintainIfDue (section 9)"]
+    sel -->|line| serve["main.serveLine<br/>(recovers panics per line)"]
     serve -->|bad JSON| bad["error response, id recovered by bestEffortID"]
     serve --> safe["processor.SafeHandler<br/>(recovers panics per request)"]
     safe --> h{"handler: cmd"}
@@ -225,7 +232,28 @@ flowchart TD
     write --> stdout[/"stdout line"/]
 ```
 
-## 9. Resilience
+## 9. Database upkeep and backups
+
+```mermaid
+flowchart TD
+    tick(["main loop timer fires<br/>(between requests: never races a write)"]) --> due{"newest backup in backups/<br/>≥ 2 days old, or none?"}
+    due -->|no| done(["nothing (one directory read)"])
+    due -->|yes| opt["FTS5 optimize<br/>(merge index segments)"]
+    opt --> frag{"free pages ≥ 20%?"}
+    frag -->|yes| vac["VACUUM"]
+    frag -->|no| bk
+    vac --> bk["VACUUM INTO backups/notes-YYYYMMDD-HHMMSS.db.partial"]
+    bk --> check{"quick_check ok<br/>and FTS5 integrity-check ok?"}
+    check -->|no| drop["delete .partial, log, retry next hour"]
+    check -->|yes| keep["chmod 600, rename to final name"]
+    keep --> prune["delete all but the newest 7 backups"]
+    prune --> log["app.log: maintenance: … done in Nms"]
+```
+
+Each step's failure is logged and doesn't stop the next one. Restoring is
+manual; see [RUNBOOK.md](RUNBOOK.md).
+
+## 10. Resilience
 
 ```mermaid
 flowchart LR
@@ -237,7 +265,7 @@ flowchart LR
     stale(["bytes from a dead process"]) --> drop["ignored (generation mismatch)"]
 ```
 
-## 10. Logging
+## 11. Logging
 
 ```mermaid
 flowchart LR
@@ -262,7 +290,7 @@ Both logs:
 
 **Note text is never logged:** saves and deletes log only the key and the length.
 
-## 11. "Last note" hint
+## 12. "Last note" hint
 
 ```mermaid
 sequenceDiagram

@@ -2,6 +2,16 @@
 
 ## 2026-10-18
 
+### New features
+- **Automatic backups.** Every 2 days Butler saves a full copy of your notes to
+  `~/.butler/backups/` and keeps the last 7 (about two weeks). Each copy is checked
+  before it's kept, and search works in it as-is. [RUNBOOK.md](RUNBOOK.md) shows
+  how to restore one.
+- **The database tidies itself up** at the same time: the search index is
+  compacted, and space left behind by deleted or edited notes is reclaimed once it
+  reaches a fifth of the file. It runs in the background between requests (about
+  14ms on your notes), never during startup or a search.
+
 ### Docs
 - **New [DATA_FLOW.md](DATA_FLOW.md)**: diagrams of how a note moves through Butler
   (hotkey → overlay → backend → database and back), covering search, save, delete,

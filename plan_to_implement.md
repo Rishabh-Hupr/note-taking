@@ -141,6 +141,11 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   `BUTLER_HINT_INTERVAL=<sec>` overrides it for testing.
 - `launch-butler.sh` — builds both halves, launches backgrounded, idempotent reruns.
 - Accurate root `README.md`; repo history rewritten to the personal GitHub identity.
+- **DB upkeep + backups** (`go-rewrite/maintenance.go`): every 2 days (checked 30s after
+  start, then hourly, from the main loop between requests) → FTS5 `optimize`, `VACUUM`
+  if ≥20% free pages, `VACUUM INTO backups/notes-YYYYMMDD-HHMMSS.db` (checked with
+  `quick_check` + FTS5 `integrity-check` before rename), keep newest 7. Restore is a
+  manual runbook (`RUNBOOK.md`); an in-app restore was judged not worth it.
 - `DATA_FLOW.md` — Mermaid diagrams of every data/code flow (components, protocol,
   open/search/save/delete sequences, cache, backend pipeline, resilience, logging,
   hint); updated in the same commit as any flow change.
