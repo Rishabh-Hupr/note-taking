@@ -30,18 +30,18 @@ enum OverlayLayout {
         min(textHeight + 2, ceil(lineHeight * CGFloat(maxLines)))
     }
 
-    /// Horizontal placement for the preview beside `parent`: the right side if the
-    /// preferred width fits, else the left. If neither fits, the roomier side,
-    /// narrowed to its room (but not below `minWidth`), so the preview doesn't sit
-    /// on top of the parent. Width is decided first because the text wraps at it.
-    /// `slideFrom` is the x-offset to animate in from (toward the parent).
+    /// Horizontal placement for the preview beside `parent`: on whichever side has
+    /// more room (right on a tie), at the preferred width or narrowed to that room
+    /// (but not below `minWidth`), so it doesn't sit on top of the parent. Width is
+    /// decided first because the text wraps at it. `slideFrom` is the x-offset to
+    /// animate in from (toward the parent).
     static func previewHorizontal(
         parent: NSRect, visible: NSRect, preferredWidth: CGFloat, minWidth: CGFloat,
         gap: CGFloat = 10, margin: CGFloat = 8
     ) -> (x: CGFloat, width: CGFloat, slideFrom: CGFloat) {
         let rightRoom = visible.maxX - margin - (parent.maxX + gap)
         let leftRoom = parent.minX - gap - (visible.minX + margin)
-        let useRight = rightRoom >= preferredWidth || (leftRoom < preferredWidth && rightRoom >= leftRoom)
+        let useRight = rightRoom >= leftRoom
         let room = useRight ? rightRoom : leftRoom
         let width = max(minWidth, min(preferredWidth, room))
         var x = useRight ? parent.maxX + gap : parent.minX - gap - width

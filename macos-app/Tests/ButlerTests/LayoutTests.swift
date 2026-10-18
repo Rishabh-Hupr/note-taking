@@ -92,6 +92,18 @@ import Testing
         #expect(p.slideFrom > 0)
     }
 
+    @Test func previewPicksTheRoomierSideEvenWhenTheRightWouldFit() {
+        // 1920-wide screen: the right has 462pt (enough for 420), but the left has
+        // 782pt — more room wins, so it goes left.
+        let wide = NSRect(x: 0, y: 0, width: 1920, height: 1080)
+        let p = OverlayLayout.previewHorizontal(
+            parent: NSRect(x: 800, y: 300, width: 640, height: 400),
+            visible: wide, preferredWidth: 420, minWidth: 300)
+        #expect(p.x + p.width == CGFloat(800 - 10))
+        #expect(p.width == 420)
+        #expect(p.slideFrom > 0)
+    }
+
     @Test func previewNarrowsInsteadOfCoveringCenteredParent() {
         // Centered 640 overlay on a 1440 screen leaves 382pt usable per side: too
         // little for 420, so it narrows to fit rather than overlapping the parent.
