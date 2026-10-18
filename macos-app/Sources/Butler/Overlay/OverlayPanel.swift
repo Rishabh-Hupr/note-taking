@@ -36,4 +36,15 @@ final class OverlayPanel: NSPanel {
     // block typing in the search field. Force it on.
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    // Standard editing shortcuts (⌘C/⌘V/⌘Z…), dispatched here because the menu's
+    // key equivalents never fire for a non-activating panel. The shortcut list lives
+    // in EditingShortcuts, shared with the Edit menu.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let action = EditingShortcuts.action(for: event),
+           NSApp.sendAction(action, to: nil, from: self) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }

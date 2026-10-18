@@ -103,6 +103,7 @@ final class PutViewController: NSViewController {
         scroll.hasVerticalScroller = true
 
         valueView.isRichText = false
+        valueView.allowsUndo = true // ⌘Z / ⇧⌘Z (dispatched by OverlayPanel)
         valueView.font = .systemFont(ofSize: 16, weight: .light)
         valueView.drawsBackground = false
         valueView.textContainerInset = NSSize(width: 0, height: 4)
