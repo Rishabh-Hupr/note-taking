@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-18
+
+### Docs
+- **New [DATA_FLOW.md](DATA_FLOW.md)**: diagrams of how a note moves through Butler
+  (hotkey → overlay → backend → database and back), covering search, save, delete,
+  the recent-notes cache, crash recovery and logging. They render on GitHub and in
+  VS Code.
+
 ## 2026-10-17
 
 ### New features

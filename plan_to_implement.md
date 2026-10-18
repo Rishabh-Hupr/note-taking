@@ -141,6 +141,9 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   `BUTLER_HINT_INTERVAL=<sec>` overrides it for testing.
 - `launch-butler.sh` — builds both halves, launches backgrounded, idempotent reruns.
 - Accurate root `README.md`; repo history rewritten to the personal GitHub identity.
+- `DATA_FLOW.md` — Mermaid diagrams of every data/code flow (components, protocol,
+  open/search/save/delete sequences, cache, backend pipeline, resilience, logging,
+  hint); updated in the same commit as any flow change.
 
 ---
 

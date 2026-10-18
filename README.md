@@ -125,6 +125,12 @@ reply → decoded for the UI. Each ⌘⌥F also logs how long opening took (form
 ⏱ open show=<ms> prepare=<ms> firstFrame=<ms> total=<ms>
 ```
 
+## How data flows
+See [DATA_FLOW.md](DATA_FLOW.md) for Mermaid diagrams of every flow: the components,
+the wire protocol, opening search, typing, saving, deleting, the recent-notes cache,
+the backend pipeline, crash recovery, logging and the menu-bar hint. Update it in
+the same commit as any change to one of those flows.
+
 ## Next plans
 See [plan_to_implement.md](plan_to_implement.md) for what's done and what's next,
 and [CHANGELOG.md](CHANGELOG.md) for what changed when.
