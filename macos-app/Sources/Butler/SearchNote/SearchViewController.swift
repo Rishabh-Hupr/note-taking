@@ -161,6 +161,9 @@ final class SearchViewController: NSViewController {
     // refreshRecent() after saves/deletes; nil until the first fetch lands.
     private var recentNotes: [Note]?
 
+    /// The most recently saved note, if the recent-notes list is loaded.
+    var newestNote: Note? { recentNotes?.first }
+
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
         previewTask?.cancel()

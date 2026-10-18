@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var putVC: PutViewController?
     private var sidecar: SidecarClient!
     private var statusItem: NSStatusItem?
+    private var lastSavedHintTask: Task<Void, Never>?
 
     // Allow construction from the nonisolated top-level (main.swift). All real
     // setup happens in applicationDidFinishLaunching, which stays main-actor.
@@ -78,10 +79,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(search)
         menu.addItem(add)
         menu.addItem(.separator())
+        menu.addItem(makeLastNoteReminderMenu())
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Butler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
 
         statusItem = item
+        startLastSavedHints()
+    }
+
+    // MARK: - "Last note" hint
+
+    // Every LastSavedHint.interval, briefly widen the menu-bar item to
+    // "📒 last note 3h ago" as a gentle nudge to capture something, then shrink
+    // back. Never takes focus or interrupts.
+    private func startLastSavedHints() {
+        lastSavedHintTask?.cancel()
+        let interval = LastSavedHint.interval()
+        guard interval > 0 else { return } // reminder turned off
+        lastSavedHintTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                await self?.showLastSavedHint()
+            }
+        }
+    }
+
+    // "Last-Note Reminder ▸ Off / Every 30 minutes / …", checkmark on the current one.
+    private func makeLastNoteReminderMenu() -> NSMenuItem {
+        let submenu = NSMenu()
+        if let override = LastSavedHint.environmentOverride() {
+            // The env var wins over the menu, so say so instead of a misleading tick.
+            let note = NSMenuItem(title: "Overridden: every \(Int(override))s (BUTLER_HINT_INTERVAL)",
+                                  action: nil, keyEquivalent: "")
+            note.isEnabled = false
+            submenu.addItem(note)
+            submenu.addItem(.separator())
+        }
+        let current = LastSavedHint.environmentOverride() == nil ? LastSavedHint.interval() : -1
+        for (index, choice) in LastSavedHint.choices.enumerated() {
+            let entry = NSMenuItem(title: choice.title, action: #selector(selectLastNoteReminder(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.tag = index
+            entry.state = choice.seconds == current ? .on : .off
+            submenu.addItem(entry)
+        }
+        let item = NSMenuItem(title: "Last-Note Reminder", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        return item
+    }
+
+    @objc private func selectLastNoteReminder(_ sender: NSMenuItem) {
+        let choice = LastSavedHint.choices[sender.tag]
+        LastSavedHint.setInterval(choice.seconds)
+        sender.menu?.items.forEach { $0.state = $0 === sender ? .on : .off }
+        startLastSavedHints() // apply now: restart the timer at the new interval (or stop it)
+    }
+
+    private func showLastSavedHint() async {
+        var newest = searchVC?.newestNote
+        if newest == nil {
+            // Backend unavailable (e.g. restarting)? Skip this hint rather than claim
+            // "no notes yet" to someone who has plenty.
+            guard let notes = try? await sidecar.fetch("") else { return }
+            newest = notes.first
+        }
+        statusItem?.button?.title = "📒 " + LastSavedHint.text(newestUpdatedAt: newest?.updatedAt)
+        try? await Task.sleep(nanoseconds: UInt64(LastSavedHint.visibleFor * 1_000_000_000))
+        statusItem?.button?.title = "📒"
     }
 
     @objc private func menuSearch() { summonFetch() }
