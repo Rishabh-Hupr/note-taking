@@ -111,7 +111,28 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   running app (watchdog respawn).
 - Edit-menu so ⌘C/⌘V/⌘X/⌘A + ⌘Q work in the overlays.
 - Overlay clamped to `visibleFrame` (no off-screen clip).
-- Minimal **menu-bar status item** (`square.and.pencil` icon) with Search / Add Note / Quit.
+- Minimal **menu-bar status item** (📒 emoji title — renders in color, unlike a template symbol) with Search / Add Note / Quit.
+- **Log rotation:** Go `helpers` logger (app.log) and Swift `RotatingLogFile`
+  (butler-ui.log, installed as stderr+stdout via dup2 so NSLog/crashes land in it)
+  rotate at 1MB keeping 3 backups; files 0600. Both keep the file open and track its
+  size with a counter (no stat/reopen per line). After a rotation Go re-points its
+  stderr at the fresh app.log so panic traces don't land in a rotated file. Launch scripts append (`>>`) instead of
+  truncating. Put/delete log key + length, never note text (was review #5).
+- **Editing shortcuts:** one table, `EditingShortcuts.all`, builds both the Edit menu
+  and `OverlayPanel.performKeyEquivalent`'s dispatch (menu key equivalents never fire
+  — the panels are non-activating), so they can't drift. Falls back to the physical
+  key on non-Latin layouts; value box `allowsUndo`. Unit-tested.
+- **Preview side:** `previewHorizontal` picks the side with more room (right on ties).
+- **Preview bounds:** a wide key stretched the panel (1193pt vs 420) over the search
+  window / off-screen — a single-line label resists compression and widens its
+  window. Key now wraps (≤3 lines, `preferredMaxLayoutWidth`, low compression
+  resistance) and its height counts toward the panel height; slide-in distance <
+  gap. Regression test places it on both sides with a wide key.
+- **Last-note hint:** every 2h the item reads `📒 last note 3h ago` for 20s (`LastSavedHint`,
+  unit-tested; newest note from the recent-notes cache). Interval chosen in the menu
+  (📒 → Last-Note Reminder: Off / 30m / 1h / 2h / 4h), saved in `UserDefaults`
+  (`butler.lastNoteHintInterval`, 0 = off), applied immediately.
+  `BUTLER_HINT_INTERVAL=<sec>` overrides it for testing.
 - `launch-butler.sh` — builds both halves, launches backgrounded, idempotent reruns.
 - Accurate root `README.md`; repo history rewritten to the personal GitHub identity.
 

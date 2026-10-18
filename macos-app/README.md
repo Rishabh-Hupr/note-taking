@@ -26,7 +26,9 @@ Finder search — so F/P are used instead.)
   per-request latency logging), `LineFramer` (splits the reply stream into lines,
   each byte scanned once) and `Models` (`Note` / request / response, mirroring the
   Go wire contract).
-- `System/` — `GlobalHotKey` (Carbon, no Accessibility permission) and `Logging`.
+- `System/` — `GlobalHotKey` (Carbon, no Accessibility permission), `Logging` +
+  `RotatingLogFile` (size-rotated `butler-ui.log`) and `EditingShortcuts` (the one table
+  behind the Edit menu and the panels' ⌘C/⌘V/⌘Z handling).
 
 ## Easiest: from the repo root
 ```bash

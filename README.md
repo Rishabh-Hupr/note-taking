@@ -13,6 +13,10 @@ global hotkey. A minimalist, Spotlight-style knowledge base.
   (**Enter** inserts a newline in the value), **Esc** to cancel. A green "Saved"
   tick confirms it. Leading/trailing spaces and blank lines are trimmed.
 
+The 📒 menu-bar icon briefly shows `📒 last note 3h ago` every 2 hours as a nudge to
+capture something. Change how often (or turn it off) from **📒 → Last-Note Reminder**;
+`BUTLER_HINT_INTERVAL=<seconds>` overrides it for testing.
+
 Both windows can be dragged anywhere and reopen where you left them. Search shows
 up to 200 notes at a time (most recent first); type to find older ones.
 
@@ -70,8 +74,9 @@ cd note-taking
 
 `launch-butler.sh` builds the Go sidecar and the Swift overlay (release), then
 launches the app **in the background** and frees your terminal. It prints the
-PID and how to stop it (`kill <PID>` / `pkill`). Re-running is safe — it stops
-any running instance first, so you always get one fresh build. Then press
+PID and how to stop it (`kill <PID>` / `pkill`). Re-running is safe — it first
+stops any Butler running from this repo (`build/`, `test-build/` or a `swift run`)
+and prints which PIDs it stopped, so you always end up with one fresh build. Then press
 **⌘⌥F** or **⌘⌥P**.
 
 ## Manual build
@@ -109,6 +114,11 @@ Each request logs its latency to `butler-ui.log` (`~/.butler/`, or `test-build/`
 ```
 ⏱ id=7 cmd=fetch notes=200 bytes=81234 roundtrip=3.1ms processing=0.6ms total=3.7ms
 ```
+Logs live in the data dir: `app.log` (backend) and `butler-ui.log` (app). Each rolls
+over at 1MB and keeps 3 backups (`.1`–`.3`); they're readable only by you and never
+contain note text. Butler keeps the logs open, so delete them only while it isn't
+running (or relaunch afterwards).
+
 `roundtrip` = request sent → full reply received (pipe + backend); `processing` =
 reply → decoded for the UI. Each ⌘⌥F also logs how long opening took (format):
 ```

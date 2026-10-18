@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-10-17
+
+### New features
+- **Logs no longer grow forever.** `app.log` and `butler-ui.log` each roll over at
+  1MB, keeping the 3 previous files (`.1`–`.3`), so they stay under ~4MB each.
+  `butler-ui.log` also keeps its history across launches now instead of being
+  wiped each time.
+
+### Security
+- **Your note text is no longer written to the logs** — saves and deletes log the
+  key and the length only. Log files are now readable only by you.
+
+### Bug fixes
+- **Copy, paste, cut, select-all and undo/redo now work** in the add-note and
+  search windows (⌘C ⌘V ⌘X ⌘A ⌘Z ⇧⌘Z). They were ignored because Butler's windows
+  don't take over as the active app.
+- **The long-note preview no longer covers the search window or runs off the
+  screen when a note has a very long title.** The title used to stay on one line
+  and stretch the preview wider than planned; it now wraps (up to 3 lines).
+
+### Changes
+- **The long-note preview opens on whichever side has more room** (left or
+  right of the search window), instead of always preferring the right.
+- **Colorful menu-bar icon**: Butler now shows a yellow ledger 📒 instead of a
+  grey outline, so it's easy to spot next to other menu-bar apps.
+- **"Last note" hint**: every 2 hours the icon briefly shows how long ago you saved
+  a note (e.g. `📒 last note 3h ago`) for 20 seconds — a gentle nudge to capture
+  something. It never pops up or takes focus. Choose how often (off, 30 minutes,
+  1, 2 or 4 hours) from **📒 → Last-Note Reminder**; the choice is remembered.
+- **Launch scripts stop any running Butler** from this repo — release or test
+  build — and print which PIDs they stopped, so two copies never fight over the
+  hotkeys.
+
 ## 2026-10-11
 
 ### Bug fixes
