@@ -6,6 +6,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/butler-common.sh
+source "$ROOT/scripts/butler-common.sh"
 CORE_DIR="$ROOT/go-rewrite"
 APP_DIR="$ROOT/macos-app"
 BUILD_DIR="$ROOT/build"          # both built artifacts are delivered here
@@ -47,28 +49,15 @@ echo "==> Building Swift overlay → $APP_BIN"
 ( cd "$APP_DIR" && swift build -c release )
 cp "$APP_DIR/.build/release/Butler" "$APP_BIN"
 
-# --- stop any Butler from this repo (build/, test-build/ or a swift run) ------
-# Only one instance can own the ⌘⌥F / ⌘⌥P hotkeys, so converge to exactly one
-# fresh instance. Its backend (butler-core) exits on its own when the app goes.
-# Escape regex metacharacters in the repo path so pgrep/pkill match it literally.
-ROOT_RE="$(printf '%s' "$ROOT" | sed 's/[][\\.*^$+?(){}|]/\\&/g')"
-BUTLER_PATTERN="^$ROOT_RE/.*/Butler$"
-RUNNING="$(pgrep -fl "$BUTLER_PATTERN" || true)"
-if [[ -n "$RUNNING" ]]; then
-    echo "==> Stopping running Butler:"
-    echo "$RUNNING" | sed 's/^/      PID /'
-    pkill -f "$BUTLER_PATTERN" || true
-    sleep 1
-else
-    echo "==> No running Butler to stop"
-fi
+# --- stop any Butler from this repo, so only one owns the hotkeys -----------
+stop_butler "$ROOT"
 
 # --- launch in the background ------------------------------------------------
 mkdir -p "$DATA_DIR"
 export BUTLER_CORE_BIN="$CORE_BIN"
 # Explicit so the sidecar uses the same dir we log to (not a matching default).
 export BUTLER_DATA_DIR="$DATA_DIR"
-# Append, not truncate: the app rotates butler-ui.log itself (1MB × 3 backups).
+# Append, not truncate: the app rotates butler-ui.log itself.
 "$APP_BIN" >>"$DATA_DIR/butler-ui.log" 2>&1 &
 APP_PID=$!
 disown "$APP_PID" 2>/dev/null || true
