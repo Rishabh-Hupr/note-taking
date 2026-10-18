@@ -53,6 +53,7 @@ final class SidecarClient: @unchecked Sendable {
         let proc = Process()
         proc.executableURL = binaryURL
         var env = ProcessInfo.processInfo.environment
+        env["BUTLER_STDERR_TO_LOG"] = "1"
         if let dataDir { env["BUTLER_DATA_DIR"] = dataDir }
         proc.environment = env
 
@@ -61,22 +62,9 @@ final class SidecarClient: @unchecked Sendable {
         proc.standardInput = inPipe
         proc.standardOutput = outPipe
 
-        // Route the sidecar's stderr to app.log so its panics/diagnostics don't
-        // leak into butler-ui.log. stdout stays the JSON protocol channel.
-        //
-        // Open with O_APPEND: the Go sidecar appends to this same app.log on its
-        // own O_APPEND fd, so every write must land at the true end of file. A
-        // plain write fd (fixed offset) would overwrite whatever the sidecar
-        // logged since launch the first time it wrote to stderr — corrupting the
-        // log exactly when a panic makes it matter. closeOnDealloc frees the fd
-        // when the Process is replaced on a watchdog restart.
-        let logPath = (butlerDataDir() as NSString).appendingPathComponent("app.log")
-        let errFD = open(logPath, O_WRONLY | O_APPEND | O_CREAT, 0o600) // private: may hold note keys
-        if errFD >= 0 {
-            proc.standardError = FileHandle(fileDescriptor: errFD, closeOnDealloc: true)
-        } else {
-            uiLog("warning: could not open \(logPath) for sidecar stderr; it will fall back to the UI log")
-        }
+        // The backend owns app.log end to end (rotation included) and, asked via
+        // BUTLER_STDERR_TO_LOG, also points its own stderr (panic traces) at it.
+        // stdout stays the JSON protocol channel.
 
         lock.lock()
         generation += 1

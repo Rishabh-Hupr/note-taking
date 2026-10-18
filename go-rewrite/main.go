@@ -32,7 +32,8 @@ func main() {
 		os.Exit(1)
 	}
 	helpers.SetLogPath(filepath.Join(dir, "app.log"))
-	helpers.SetStderrFollowsLog(true) // the app gives us app.log as stderr
+	// The app asks us to send stderr (panic traces) into app.log; run by hand, keep it.
+	helpers.SetStderrToLog(os.Getenv("BUTLER_STDERR_TO_LOG") == "1")
 
 	notesDB, err := NewNotesDatabase(dir)
 	if err != nil {

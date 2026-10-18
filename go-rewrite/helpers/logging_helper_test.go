@@ -6,6 +6,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func write(t *testing.T, path, content string) {
@@ -24,11 +25,23 @@ func read(t *testing.T, path string) string {
 	return string(b)
 }
 
+func exists(path string) bool { _, err := os.Stat(path); return err == nil }
+
+// useLog points the logger at path for one test and resets everything after.
+func useLog(t *testing.T, path string) {
+	t.Helper()
+	SetLogPath(path)
+	t.Cleanup(func() {
+		SetStderrToLog(false)
+		SetLogPath("")
+		rotationPausedUntil = time.Time{}
+	})
+}
+
 func TestLogIt_BelowLimitAppends(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "app.log")
 	write(t, log, "existing\n")
-	SetLogPath(log)
-	defer SetLogPath("")
+	useLog(t, log)
 
 	LogIt("new line")
 
@@ -36,21 +49,20 @@ func TestLogIt_BelowLimitAppends(t *testing.T) {
 	if !strings.HasPrefix(got, "existing\n") || !strings.Contains(got, "new line") {
 		t.Errorf("log under the limit should just be appended to, got %q", got)
 	}
-	if _, err := os.Stat(log + ".1"); err == nil {
+	if exists(log + ".1") {
 		t.Error("no backup expected below the limit")
 	}
 }
 
 func TestLogIt_RotatesOnceTheTrackedSizeCrossesTheLimit(t *testing.T) {
-	// The size is counted as we write (no stat per line): the write that crosses
-	// the limit goes into the current file, and the next one starts a fresh log.
+	// Size is counted as we write (no stat per line): the write that crosses the
+	// limit goes into the current file, and the next one starts a fresh log.
 	log := filepath.Join(t.TempDir(), "app.log")
 	write(t, log, strings.Repeat("x", MaxLogBytes-10))
-	SetLogPath(log)
-	defer SetLogPath("")
+	useLog(t, log)
 
 	LogIt("this line crosses the limit")
-	if _, err := os.Stat(log + ".1"); err == nil {
+	if exists(log + ".1") {
 		t.Fatal("should not rotate before the limit has been reached")
 	}
 	LogIt("first line of the new log")
@@ -63,68 +75,102 @@ func TestLogIt_RotatesOnceTheTrackedSizeCrossesTheLimit(t *testing.T) {
 	}
 }
 
-func TestRotateFiles_ShiftsBackupsAndKeepsOnlyN(t *testing.T) {
+func TestLogIt_RotationShiftsBackupsAndKeepsOnlyN(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "app.log")
 	write(t, log+".1", "one")
 	write(t, log+".2", "two")
 	write(t, log+".3", "three") // oldest: must be dropped
-	write(t, log, "current")
+	write(t, log, strings.Repeat("x", MaxLogBytes))
+	useLog(t, log)
 
-	rotateFiles(log, 3)
+	LogIt("new")
 
-	if _, err := os.Stat(log); err == nil {
-		t.Error("current log should have moved to .1")
-	}
-	for suffix, want := range map[string]string{".1": "current", ".2": "one", ".3": "two"} {
+	for suffix, want := range map[string]string{".2": "one", ".3": "two"} {
 		if got := read(t, log+suffix); got != want {
 			t.Errorf("%s = %q, want %q", suffix, got, want)
 		}
 	}
-	if _, err := os.Stat(log + ".4"); err == nil {
+	if !strings.HasPrefix(read(t, log+".1"), "xxxx") {
+		t.Error("the full log should be .1")
+	}
+	if exists(log + ".4") {
 		t.Error("only 3 backups should be kept")
 	}
 }
 
-func TestLogIt_RotatesAndUsesPrivatePermissions(t *testing.T) {
-	log := filepath.Join(t.TempDir(), "app.log")
-	write(t, log, strings.Repeat("x", MaxLogBytes)) // already at the limit
-	SetLogPath(log)
-	defer SetLogPath("")
-
-	LogIt("fresh line")
-
-	if !strings.Contains(read(t, log), "fresh line") || strings.Contains(read(t, log), "xxxx") {
-		t.Error("LogIt should rotate the full log away and start a fresh one")
+func TestLogIt_FailedRotationLosesNothing(t *testing.T) {
+	// The directory becomes unwritable at rotation time: the full log and every
+	// backup must stay as they were, and logging must carry on.
+	dir := t.TempDir()
+	log := filepath.Join(dir, "app.log")
+	write(t, log+".1", "one")
+	write(t, log+".2", "two")
+	write(t, log+".3", "three")
+	write(t, log, strings.Repeat("x", MaxLogBytes))
+	useLog(t, log)
+	if err := os.Chmod(dir, 0500); err != nil {
+		t.Fatal(err)
 	}
+	defer os.Chmod(dir, 0700)
+
+	LogIt("still logging")
+	LogIt("and again")
+
+	os.Chmod(dir, 0700)
+	for suffix, want := range map[string]string{".1": "one", ".2": "two", ".3": "three"} {
+		if got := read(t, log+suffix); got != want {
+			t.Errorf("backup %s = %q, want %q (a failed rotation must not shift backups)", suffix, got, want)
+		}
+	}
+	if got := read(t, log); !strings.Contains(got, "still logging") || !strings.Contains(got, "and again") {
+		t.Error("logging should continue into the current file after a failed rotation")
+	}
+}
+
+func TestLogIt_RecoversWhenTheLogIsDeletedByHand(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "app.log")
+	saved := logRecheckInterval
+	logRecheckInterval = 0 // re-check on every line, so the test needn't wait
+	defer func() { logRecheckInterval = saved }()
+	useLog(t, log)
+
+	LogIt("before")
+	os.Remove(log)
+	LogIt("after")
+
+	if got := read(t, log); !strings.Contains(got, "after") {
+		t.Errorf("a deleted log should be recreated, got %q", got)
+	}
+}
+
+func TestLogIt_UsesPrivatePermissions(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "app.log")
+	write(t, log, "x")
+	os.Chmod(log, 0644) // a log created before logs were private
+	useLog(t, log)
+	LogIt("line")
+
 	info, err := os.Stat(log)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("new log permissions = %o, want 600", perm)
+		t.Errorf("log permissions = %o, want 600", perm)
 	}
 }
 
-func TestLogIt_RepointsStderrAfterRotation(t *testing.T) {
-	// Simulate the app handing us the log as stderr, then rotate: a later stderr
-	// write (e.g. a panic trace) must land in the fresh app.log, not app.log.1.
+func TestSetStderrToLog_StderrFollowsTheLogAcrossRotation(t *testing.T) {
+	// Panic traces go to stderr: they must land in the current app.log, both
+	// right away and after a rotation (never in the rotated-away app.log.1).
 	log := filepath.Join(t.TempDir(), "app.log")
-	write(t, log, strings.Repeat("x", MaxLogBytes))
 	saved, err := syscall.Dup(int(os.Stderr.Fd()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { syscall.Dup2(saved, int(os.Stderr.Fd())); syscall.Close(saved) }()
-	f, err := os.OpenFile(log, os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	syscall.Dup2(int(f.Fd()), int(os.Stderr.Fd()))
-	f.Close()
-
-	SetLogPath(log)
-	SetStderrFollowsLog(true)
-	defer func() { SetLogPath(""); SetStderrFollowsLog(false) }()
+	write(t, log, strings.Repeat("x", MaxLogBytes))
+	useLog(t, log)
+	SetStderrToLog(true)
 
 	LogIt("trigger rotation")
 	os.Stderr.WriteString("panic trace\n")

@@ -14,19 +14,26 @@ import (
 const (
 	MaxLogBytes    = 1 << 20 // 1MB
 	KeepLogBackups = 3
+
+	// After a failed rotation, wait this long before trying again.
+	rotationRetryDelay = time.Minute
 )
 
+// How often to check that the file at the log path is still the one we have open
+// (it may have been deleted or moved by hand). Time-based, so the common path
+// costs no extra syscall. A var only so tests can shorten it.
+var logRecheckInterval = 5 * time.Second
+
 // The log stays open between calls and its size is tracked in logSize (read once
-// when opened, then advanced by each write), so LogIt costs a single write — no
-// open, stat or close per line. Output written to the file by others (the app
-// hands this process app.log as stderr, for panic traces) isn't counted until the
-// next reopen, which re-reads the real size.
+// when opened, then advanced by each write), so LogIt costs a single write.
 var (
-	logMu            sync.Mutex
-	logStore         string
-	logFile          *os.File
-	logSize          int64
-	stderrFollowsLog bool
+	logMu               sync.Mutex
+	logStore            string
+	logFile             *os.File
+	logSize             int64
+	logCheckedAt        time.Time
+	rotationPausedUntil time.Time
+	stderrToLog         bool
 )
 
 // SetLogPath points the logger at a file (typically <data dir>/app.log) and opens
@@ -41,35 +48,62 @@ func SetLogPath(path string) {
 	}
 }
 
-// SetStderrFollowsLog makes stderr track the log across rotations. The app hands
-// this process app.log as its stderr; after a rotation that fd would still point at
-// the renamed file, so the next panic would land in app.log.1 — or a deleted file.
-// Off by default (tests).
-func SetStderrFollowsLog(on bool) {
+// SetStderrToLog makes the log file this process's stderr too (now and after
+// every rotation or reopen), so panic traces land in app.log. The app asks for it
+// via BUTLER_STDERR_TO_LOG=1; a butler-core run from a terminal keeps its stderr.
+func SetStderrToLog(on bool) {
 	logMu.Lock()
 	defer logMu.Unlock()
-	stderrFollowsLog = on
+	stderrToLog = on
+	pointStderrAtLog()
 }
 
 func LogIt(varToLog string) {
 	logMu.Lock()
 	defer logMu.Unlock()
+	if logStore == "" {
+		return
+	}
+	now := time.Now()
+	if logFile == nil || now.Sub(logCheckedAt) >= logRecheckInterval {
+		logCheckedAt = now
+		if !logFileStillAtPath() {
+			closeLog()
+			openLog() // deleted/moved by hand (or never opened): start a fresh file
+		}
+	}
 	if logFile == nil {
 		return
 	}
-	if logSize >= MaxLogBytes {
-		closeLog()
-		rotateFiles(logStore, KeepLogBackups)
-		if !openLog() {
-			return
-		}
-		if stderrFollowsLog {
-			syscall.Dup2(int(logFile.Fd()), int(os.Stderr.Fd()))
-		}
+	if logSize >= MaxLogBytes && !now.Before(rotationPausedUntil) {
+		rotate(now)
 	}
-	timestamp := time.Now().UTC().Format(time.RFC3339) // e.g. 2025-06-15T14:00:00Z
-	n, _ := logFile.WriteString(fmt.Sprintf("%s %s\n", timestamp, varToLog))
+	n, _ := logFile.WriteString(fmt.Sprintf("%s %s\n", now.UTC().Format(time.RFC3339), varToLog))
 	logSize += int64(n)
+}
+
+// rotate moves the full log aside, opens a fresh one, and only then shifts the
+// backups — so if the fresh file can't be opened, nothing has been lost: the log
+// is put back and rotation is retried later. Caller holds logMu.
+func rotate(now time.Time) {
+	aside := logStore + ".rotating"
+	closeLog()
+	if os.Rename(logStore, aside) != nil {
+		openLog()
+		rotationPausedUntil = now.Add(rotationRetryDelay)
+		return
+	}
+	if !openLog() {
+		os.Rename(aside, logStore)
+		openLog()
+		rotationPausedUntil = now.Add(rotationRetryDelay)
+		return
+	}
+	os.Remove(fmt.Sprintf("%s.%d", logStore, KeepLogBackups))
+	for i := KeepLogBackups - 1; i >= 1; i-- {
+		os.Rename(fmt.Sprintf("%s.%d", logStore, i), fmt.Sprintf("%s.%d", logStore, i+1))
+	}
+	os.Rename(aside, logStore+".1")
 }
 
 // openLog opens logStore for appending (created if missing, readable only by you —
@@ -86,7 +120,29 @@ func openLog() bool {
 	if info, err := f.Stat(); err == nil {
 		logSize = info.Size()
 	}
+	pointStderrAtLog()
 	return true
+}
+
+// logFileStillAtPath reports whether the open file is the one at logStore.
+// Caller holds logMu.
+func logFileStillAtPath() bool {
+	if logFile == nil {
+		return false
+	}
+	atPath, err := os.Stat(logStore)
+	if err != nil {
+		return false
+	}
+	open, err := logFile.Stat()
+	return err == nil && os.SameFile(atPath, open)
+}
+
+// pointStderrAtLog makes fd 2 the open log when stderrToLog is set. Caller holds logMu.
+func pointStderrAtLog() {
+	if stderrToLog && logFile != nil {
+		syscall.Dup2(int(logFile.Fd()), int(os.Stderr.Fd()))
+	}
 }
 
 // closeLog closes the open log, if any. Caller holds logMu.
@@ -95,15 +151,6 @@ func closeLog() {
 		logFile.Close()
 		logFile = nil
 	}
-}
-
-// rotateFiles shifts path → path.1 → … → path.keep, dropping the oldest.
-func rotateFiles(path string, keep int) {
-	os.Remove(fmt.Sprintf("%s.%d", path, keep))
-	for i := keep - 1; i >= 1; i-- {
-		os.Rename(fmt.Sprintf("%s.%d", path, i), fmt.Sprintf("%s.%d", path, i+1))
-	}
-	os.Rename(path, path+".1")
 }
 
 func Error_happened(err error) bool {
