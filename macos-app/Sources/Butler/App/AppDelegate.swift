@@ -65,11 +65,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // it isn't deallocated (which would remove it from the bar).
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        // A butler-ish figure ready to serve; fall back on older macOS.
-        let icon = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "Butler")
-            ?? NSImage(systemSymbolName: "note", accessibilityDescription: "Butler")
-        icon?.isTemplate = true
-        item.button?.image = icon
+        // An emoji title renders in full color (a template SF Symbol is forced to
+        // monochrome), so Butler stays easy to spot in a busy menu bar.
+        item.button?.title = "📒"
+        item.button?.toolTip = "Butler"
 
         let menu = NSMenu()
         let search = NSMenuItem(title: "Search      ⌘⌥F", action: #selector(menuSearch), keyEquivalent: "")
