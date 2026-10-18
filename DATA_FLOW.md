@@ -32,7 +32,7 @@ flowchart LR
     end
 
     db[("~/.butler/notes.db<br/>SQLite + FTS5")]
-    backups[("~/.butler/backups/<br/>newest 7")]
+    backups[("~/.butler/backups/<br/>newest backupsToKeep")]
 
     user --> hotkeys
     user --> menu
@@ -44,7 +44,7 @@ flowchart LR
     client -- "JSON line on stdin" --> loop
     loop -- "JSON line on stdout" --> client
     loop --> proc --> ops --> db
-    loop -- "every 2 days: maintainIfDue" --> db
+    maint["maintainer goroutine<br/>(maintenance.go)"] -- "backup + upkeep when due" --> db
     db -.->|VACUUM INTO| backups
     client -.-> uilog
     search -.-> uilog
@@ -212,11 +212,7 @@ hot-swap.
 
 ```mermaid
 flowchart TD
-    stdin[/"stdin"/] --> reader["readLines goroutine<br/>(one line at a time, skips blanks)"]
-    reader -->|lines channel| sel{"main loop select"}
-    timer(["maintenance timer<br/>30s after start, then hourly"]) --> sel
-    sel -->|timer| maint["maintainIfDue (section 9)"]
-    sel -->|line| serve["main.serveLine<br/>(recovers panics per line)"]
+    stdin[/"stdin line"/] --> serve["main.serveLine<br/>(recovers panics per line)"]
     serve -->|bad JSON| bad["error response, id recovered by bestEffortID"]
     serve --> safe["processor.SafeHandler<br/>(recovers panics per request)"]
     safe --> h{"handler: cmd"}
@@ -234,24 +230,47 @@ flowchart TD
 
 ## 9. Database upkeep and backups
 
+Runs on its own goroutine (`maintainer.run`), next to the request loop. The
+schedule constants are listed in [RUNBOOK.md](RUNBOOK.md#backups); they're
+referred to here by name.
+
 ```mermaid
 flowchart TD
-    tick(["main loop timer fires<br/>(between requests: never races a write)"]) --> due{"newest backup in backups/<br/>≥ 2 days old, or none?"}
-    due -->|no| done(["nothing (one directory read)"])
-    due -->|yes| opt["FTS5 optimize<br/>(merge index segments)"]
-    opt --> frag{"free pages ≥ 20%?"}
-    frag -->|yes| vac["VACUUM"]
-    frag -->|no| bk
-    vac --> bk["VACUUM INTO backups/notes-YYYYMMDD-HHMMSS.db.partial"]
-    bk --> check{"quick_check ok<br/>and FTS5 integrity-check ok?"}
-    check -->|no| drop["delete .partial, log, retry next hour"]
-    check -->|yes| keep["chmod 600, rename to final name"]
-    keep --> prune["delete all but the newest 7 backups"]
-    prune --> log["app.log: maintenance: … done in Nms"]
+    tick(["firstCheckDelay after start, then every checkEvery"]) --> due{"due?<br/>newest backup not dated in the future<br/>is ≥ backupInterval old (or none),<br/>and no failure in the last retryAfterFailure"}
+    due -->|no| idle(["nothing (one directory read)"])
+    due -->|yes| prep["backups/ → 0700, remove leftover .partial files"]
+    prep --> bk["VACUUM INTO notes-YYYYMMDD-HHMMSS.db.partial (UTC)"]
+    bk --> qc{"quick_check ok?"}
+    qc -->|no| fail["delete .partial, log, back off retryAfterFailure<br/>(existing backups untouched)"]
+    qc -->|yes| fts{"copy's FTS index in sync?"}
+    fts -->|no| fix["rebuild index in the copy, re-check"]
+    fix -->|still broken| fail
+    fix -->|ok| keep
+    fts -->|yes| keep["chmod 600, rename to final name"]
+    keep --> prune["prune to backupsToKeep<br/>(future-dated ones go first)"]
+    prune --> live{"index drifted?"}
+    live -->|yes| rebuild["live FTS rebuild"]
+    live -->|no| opt["live FTS optimize"]
+    rebuild & opt --> frag{"free pages ≥ vacuumFreeRatio?"}
+    frag -->|yes| vac["VACUUM, then wal_checkpoint(TRUNCATE)"]
+    frag -->|no| log
+    vac --> log["app.log: maintenance: … done in Nms"]
 ```
 
-Each step's failure is logged and doesn't stop the next one. Restoring is
-manual; see [RUNBOOK.md](RUNBOOK.md).
+```mermaid
+sequenceDiagram
+    participant R as request loop (searches, saves)
+    participant DB as notes.db (WAL)
+    participant M as maintainer goroutine
+
+    M->>DB: VACUUM INTO copy (read snapshot)
+    R->>DB: searches and saves carry on (WAL readers/writers unaffected)
+    M->>DB: FTS optimize / VACUUM (write lock)
+    R->>DB: a save waits (busy timeout 5s), searches carry on
+    Note over R,M: measured at 100k notes: pass 1.4s, searches max 117ms, saves max 42ms
+```
+
+Restoring is manual; see [RUNBOOK.md](RUNBOOK.md).
 
 ## 10. Resilience
 

@@ -20,9 +20,9 @@ capture something. Change how often (or turn it off) from **📒 → Last-Note R
 Both windows can be dragged anywhere and reopen where you left them. Search shows
 up to 200 notes at a time (most recent first); type to find older ones.
 
-Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`). Every 2
-days they're backed up to `~/.butler/backups/` (newest 7 kept), and the database is
-tidied up at the same time. To restore a backup, follow [RUNBOOK.md](RUNBOOK.md).
+Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`). They're
+backed up automatically to `~/.butler/backups/`, and the database is tidied up at
+the same time. [RUNBOOK.md](RUNBOOK.md) has the schedule and the restore steps.
 
 ## Architecture
 

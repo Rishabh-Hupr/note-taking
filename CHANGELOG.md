@@ -9,8 +9,9 @@
   how to restore one.
 - **The database tidies itself up** at the same time: the search index is
   compacted, and space left behind by deleted or edited notes is reclaimed once it
-  reaches a fifth of the file. It runs in the background between requests (about
-  14ms on your notes), never during startup or a search.
+  reaches a fifth of the file. If the search index ever falls out of step with your
+  notes, it's rebuilt. All of this runs in the background (about 14ms on your
+  notes), never during startup, and search keeps working while it runs.
 
 ### Docs
 - **New [DATA_FLOW.md](DATA_FLOW.md)**: diagrams of how a note moves through Butler
