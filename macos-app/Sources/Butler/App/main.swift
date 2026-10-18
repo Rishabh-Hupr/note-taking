@@ -1,5 +1,7 @@
 import AppKit
 
+installUILog() // rotating butler-ui.log, installed as stderr before anything logs
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

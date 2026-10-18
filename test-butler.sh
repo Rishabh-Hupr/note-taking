@@ -48,7 +48,8 @@ launch_app() {
     export BUTLER_CORE_BIN="$CORE_BIN"
     # Explicit so the sidecar uses the same dir we log to (not a matching default).
     export BUTLER_DATA_DIR="$DATA_DIR"
-    "$APP_BIN" >"$DATA_DIR/butler-ui.log" 2>&1 &
+    # Append, not truncate: the app rotates butler-ui.log itself (1MB × 3 backups).
+    "$APP_BIN" >>"$DATA_DIR/butler-ui.log" 2>&1 &
     local pid=$!
     disown "$pid" 2>/dev/null || true
     cat <<EOF

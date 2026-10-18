@@ -32,6 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 	helpers.SetLogPath(filepath.Join(dir, "app.log"))
+	helpers.SetStderrFollowsLog(true) // the app gives us app.log as stderr
 
 	notesDB, err := NewNotesDatabase(dir)
 	if err != nil {

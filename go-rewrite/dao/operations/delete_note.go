@@ -26,7 +26,7 @@ func DeleteNote(db *sql.DB, id int) error {
 		return err
 	}
 
-	helpers.LogIt(fmt.Sprintf("Deleting id %d; key: %s; value: %s", id, key, value))
+	helpers.LogIt(fmt.Sprintf("Deleting id %d; key: %s; value: %d chars", id, key, len(value)))
 
 	if _, err := db.Exec(`DELETE FROM notes WHERE id = ?`, id); err != nil {
 		helpers.Error_happened(err)

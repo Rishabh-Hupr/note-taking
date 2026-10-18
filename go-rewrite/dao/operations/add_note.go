@@ -11,7 +11,7 @@ import (
 // DB, and rank is search-only, so only Key and Value are read from n.
 func PutNote(db *sql.DB, n dao.Note) error {
 	helpers.LogIt("-------------")
-	helpers.LogIt(fmt.Sprintf("Received key: %s; value: %s", n.Key, n.Value))
+	helpers.LogIt(fmt.Sprintf("Received key: %s; value: %d chars", n.Key, len(n.Value)))
 
 	// Upsert: insert a new note, or update value on an existing key. created_at
 	// is left untouched on update (preserved from first insert); updated_at is
@@ -27,6 +27,6 @@ func PutNote(db *sql.DB, n dao.Note) error {
 		return err
 	}
 
-	helpers.LogIt(fmt.Sprintf("%s : %s Saved", n.Key, n.Value))
+	helpers.LogIt(fmt.Sprintf("%s saved (%d chars)", n.Key, len(n.Value)))
 	return nil
 }

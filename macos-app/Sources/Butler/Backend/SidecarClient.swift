@@ -71,7 +71,7 @@ final class SidecarClient: @unchecked Sendable {
         // log exactly when a panic makes it matter. closeOnDealloc frees the fd
         // when the Process is replaced on a watchdog restart.
         let logPath = (butlerDataDir() as NSString).appendingPathComponent("app.log")
-        let errFD = open(logPath, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        let errFD = open(logPath, O_WRONLY | O_APPEND | O_CREAT, 0o600) // private: may hold note keys
         if errFD >= 0 {
             proc.standardError = FileHandle(fileDescriptor: errFD, closeOnDealloc: true)
         } else {
