@@ -9,7 +9,10 @@ final class NotePreviewPanel: NSPanel {
     static let preferredWidth: CGFloat = 420
     static let minWidth: CGFloat = 300
     private let padding: CGFloat = 16
-    private let headerHeight: CGFloat = 20
+    private let headerHeight: CGFloat = 20          // one line of key
+    private let maxKeyLines = 3
+    private let keyFont = NSFont.systemFont(ofSize: 14, weight: .semibold)
+    private var keyHeightConstraint: NSLayoutConstraint?
     private let headerSpacing: CGFloat = 8
     // The preview grows to fit up to this many lines, then scrolls.
     private let maxVisibleLines = 50
@@ -51,8 +54,14 @@ final class NotePreviewPanel: NSPanel {
         effect.layer?.masksToBounds = true
         contentView = effect
 
-        keyLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-        keyLabel.lineBreakMode = .byTruncatingTail
+        keyLabel.font = keyFont
+        // The key wraps (up to maxKeyLines, then "…") and may never widen the
+        // panel: a single-line label resists compression and pushed the window
+        // past its planned width — over the search window, or off-screen.
+        keyLabel.lineBreakMode = .byWordWrapping
+        keyLabel.maximumNumberOfLines = maxKeyLines
+        keyLabel.cell?.truncatesLastVisibleLine = true
+        keyLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         keyLabel.translatesAutoresizingMaskIntoConstraints = false
 
         textView.isEditable = false
@@ -83,11 +92,13 @@ final class NotePreviewPanel: NSPanel {
 
         effect.addSubview(keyLabel)
         effect.addSubview(scrollView)
+        let keyHeight = keyLabel.heightAnchor.constraint(equalToConstant: headerHeight)
+        keyHeightConstraint = keyHeight
         NSLayoutConstraint.activate([
             keyLabel.topAnchor.constraint(equalTo: effect.topAnchor, constant: padding),
             keyLabel.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: padding),
             keyLabel.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -padding),
-            keyLabel.heightAnchor.constraint(equalToConstant: headerHeight),
+            keyHeight,
 
             scrollView.topAnchor.constraint(equalTo: keyLabel.bottomAnchor, constant: headerSpacing),
             scrollView.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: padding),
@@ -118,7 +129,18 @@ final class NotePreviewPanel: NSPanel {
         let textHeight = OverlayLayout.textHeight(note.value, width: wrapWidth, font: textFont)
         let textAreaHeight = OverlayLayout.previewTextAreaHeight(
             textHeight: textHeight, lineHeight: lineHeight, maxLines: maxVisibleLines)
-        let chrome = padding * 2 + headerHeight + headerSpacing
+        // Key height at this width (wrapped, capped at maxKeyLines) is part of the
+        // panel height, so a long key can't push the panel off-screen either.
+        let contentWidth = width - padding * 2
+        // Measured by the label's own cell (its insets and padding make it wrap a
+        // little narrower than a plain text measurement at the same width).
+        let keyLineHeight = NSLayoutManager().defaultLineHeight(for: keyFont)
+        let fitted = keyLabel.cell?.cellSize(forBounds: NSRect(
+            x: 0, y: 0, width: contentWidth, height: .greatestFiniteMagnitude)).height ?? headerHeight
+        let keyHeight = max(headerHeight, min(ceil(fitted), ceil(keyLineHeight * CGFloat(maxKeyLines)) + 2))
+        keyLabel.preferredMaxLayoutWidth = contentWidth
+        keyHeightConstraint?.constant = keyHeight
+        let chrome = padding * 2 + keyHeight + headerSpacing
         let height = min(textAreaHeight + chrome, visible.height - 16)
         let y = OverlayLayout.previewY(anchor: anchor, height: height, visible: visible)
         let target = NSRect(x: x, y: y, width: width, height: height)

@@ -47,7 +47,7 @@ enum OverlayLayout {
         var x = useRight ? parent.maxX + gap : parent.minX - gap - width
         // Only when even minWidth doesn't fit does it overlap the parent.
         x = min(max(x, visible.minX + margin), visible.maxX - width - margin)
-        return (x, width, useRight ? -12 : 12)
+        return (x, width, useRight ? -8 : 8) // slide < gap: never touches the parent
     }
 
     /// Vertical placement: top-aligned with `anchor` (the selected row), clamped.
