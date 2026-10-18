@@ -47,11 +47,20 @@ echo "==> Building Swift overlay → $APP_BIN"
 ( cd "$APP_DIR" && swift build -c release )
 cp "$APP_DIR/.build/release/Butler" "$APP_BIN"
 
-# --- stop any existing instance (idempotent: converge to one fresh instance) --
-if pgrep -f "$APP_BIN" >/dev/null 2>&1; then
-    echo "==> Stopping the running Butler instance…"
-    pkill -f "$APP_BIN" || true
+# --- stop any Butler from this repo (build/, test-build/ or a swift run) ------
+# Only one instance can own the ⌘⌥F / ⌘⌥P hotkeys, so converge to exactly one
+# fresh instance. Its backend (butler-core) exits on its own when the app goes.
+# Escape regex metacharacters in the repo path so pgrep/pkill match it literally.
+ROOT_RE="$(printf '%s' "$ROOT" | sed 's/[][\\.*^$+?(){}|]/\\&/g')"
+BUTLER_PATTERN="^$ROOT_RE/.*/Butler$"
+RUNNING="$(pgrep -fl "$BUTLER_PATTERN" || true)"
+if [[ -n "$RUNNING" ]]; then
+    echo "==> Stopping running Butler:"
+    echo "$RUNNING" | sed 's/^/      PID /'
+    pkill -f "$BUTLER_PATTERN" || true
     sleep 1
+else
+    echo "==> No running Butler to stop"
 fi
 
 # --- launch in the background ------------------------------------------------
