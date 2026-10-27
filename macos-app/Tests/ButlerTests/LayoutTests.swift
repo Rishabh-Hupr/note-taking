@@ -156,24 +156,31 @@ import Testing
         }
     }
 
-    // Landing on a note must cost the same however long it is: a 1.5MB note is
-    // timed against the 6KB one, alternating so tests running in parallel load
-    // both alike, best of 10 each.
-    @Test func leadingTextHeightCostDoesNotGrowWithTheNote() {
+    // Landing on a note must cost the same however long it is. Exact check:
+    // a 1.5MB note is measured from exactly the same start as a 6KB one.
+    @Test func leadingTextHeightMeasuresOnlyTheStart() {
         let small = longStructuredNote
         let huge = String(repeating: small + "\n", count: 250)
         let chars = maxChars(width: 374, font: font)
-        func ms(_ text: String) -> Double {
+        let start = OverlayLayout.leadingExcerpt(huge, lines: 50, maxCharsPerLine: chars)
+        #expect(start == OverlayLayout.leadingExcerpt(small, lines: 50, maxCharsPerLine: chars))
+        #expect(start.count <= chars * 52)
+        #expect(OverlayLayout.leadingTextHeight(huge, lines: 50, width: 374, font: font, maxCharsPerLine: chars)
+                == OverlayLayout.textHeight(String(start), width: 374, font: font))
+    }
+
+    // Coarse timing on top: measuring the whole 1.5MB note took over 600ms, the
+    // start about 1.5ms. Other tests running in parallel add up to ~20ms of
+    // noise either way, so this only flags the whole-note kind of regression.
+    @Test func leadingTextHeightStaysFastOnAHugeNote() {
+        let huge = String(repeating: longStructuredNote + "\n", count: 250)
+        let chars = maxChars(width: 374, font: font)
+        let best = (0..<5).map { _ in
             let start = DispatchTime.now().uptimeNanoseconds
-            _ = OverlayLayout.leadingTextHeight(text, lines: 50, width: 374, font: font, maxCharsPerLine: chars)
+            _ = OverlayLayout.leadingTextHeight(huge, lines: 50, width: 374, font: font, maxCharsPerLine: chars)
             return Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
-        }
-        var smallMs = Double.infinity, hugeMs = Double.infinity
-        for _ in 0..<10 {
-            smallMs = min(smallMs, ms(small))
-            hugeMs = min(hugeMs, ms(huge))
-        }
-        #expect(hugeMs < smallMs * 3 + 1, "1.5MB note \(hugeMs)ms vs 6KB \(smallMs)ms")
+        }.min()!
+        #expect(best < 100, "1.5MB note took \(best)ms")
     }
 
     @Test func oneLineSummaryJoinsLinesAndStaysShort() {

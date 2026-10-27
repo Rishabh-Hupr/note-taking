@@ -34,9 +34,9 @@ import Testing
         #expect(!panel.frame.intersects(parent.frame), "preview \(panel.frame) overlaps search \(parent.frame)")
         #expect(screen.contains(panel.frame), "preview \(panel.frame) leaves the screen \(screen)")
     }
-    // Opening the preview costs the same for a 1.5MB note as for a 6KB one: it
-    // sizes itself from the note's start and draws only what's visible. Timed
-    // alternately, best of 5 each, so parallel tests load both alike.
+    // Opening the preview costs about the same for a 1.5MB note as for a 6KB
+    // one: it sizes itself from the note's start and draws only what's visible.
+    // Timed alternately, best of 5 each.
     @Test func presentingAHugeNoteCostsWhatASmallOneDoes() {
         _ = NSApplication.shared
         let parent = NSWindow(contentRect: NSRect(x: 40, y: 250, width: 640, height: 592),
@@ -61,7 +61,9 @@ import Testing
             smallMs = min(smallMs, ms(small))
             hugeMs = min(hugeMs, ms(huge))
         }
-        #expect(hugeMs < smallMs * 3 + 2, "1.5MB note \(hugeMs)ms vs 6KB \(smallMs)ms")
+        // Sizing from the whole note took 631ms against 6ms; parallel tests add
+        // up to ~20ms of noise, so allow that much on top.
+        #expect(hugeMs < smallMs * 3 + 30, "1.5MB note \(hugeMs)ms vs 6KB \(smallMs)ms")
     }
 
     // The preview holds the whole note and relies on TextKit 2 laying out only
