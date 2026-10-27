@@ -34,4 +34,41 @@ import Testing
         #expect(!panel.frame.intersects(parent.frame), "preview \(panel.frame) overlaps search \(parent.frame)")
         #expect(screen.contains(panel.frame), "preview \(panel.frame) leaves the screen \(screen)")
     }
+    // Opening the preview costs the same for a 1.5MB note as for a 6KB one: it
+    // sizes itself from the note's start and draws only what's visible. Timed
+    // alternately, best of 5 each, so parallel tests load both alike.
+    @Test func presentingAHugeNoteCostsWhatASmallOneDoes() {
+        _ = NSApplication.shared
+        let parent = NSWindow(contentRect: NSRect(x: 40, y: 250, width: 640, height: 592),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        parent.orderFrontRegardless()
+        let line = "  step: ALB authenticate-oidc → lambda (regional_stack.ts), cookie=AWSELB"
+        let small = String(repeating: line + "\n", count: 80)
+        let huge = String(repeating: small, count: 250)
+        let panel = NotePreviewPanel()
+        var id = 0
+        func ms(_ value: String) -> Double {
+            id += 1 // a new note each time, so the text is really replaced
+            let note = Note(id: id, key: "k", value: value, createdAt: "", updatedAt: "", rank: 0)
+            let start = DispatchTime.now().uptimeNanoseconds
+            panel.present(note, anchor: NSRect(x: 52, y: 700, width: 600, height: 48), in: parent)
+            panel.displayIfNeeded()
+            return Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
+        }
+        _ = ms(small) // first show sets up fonts and the window
+        var smallMs = Double.infinity, hugeMs = Double.infinity
+        for _ in 0..<5 {
+            smallMs = min(smallMs, ms(small))
+            hugeMs = min(hugeMs, ms(huge))
+        }
+        #expect(hugeMs < smallMs * 3 + 2, "1.5MB note \(hugeMs)ms vs 6KB \(smallMs)ms")
+    }
+
+    // The preview holds the whole note and relies on TextKit 2 laying out only
+    // what's on screen. Touching the text view's `layoutManager` silently
+    // switches it to TextKit 1, which lays out the whole note up front.
+    @Test func previewTextViewLaysOutOnlyWhatsVisible() {
+        let (panel, _, _) = present(parentX: 40)
+        #expect((panel as? NotePreviewPanel)?.usesViewportLayout == true)
+    }
 }

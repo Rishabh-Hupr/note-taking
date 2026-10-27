@@ -40,13 +40,14 @@ final class SearchViewController: NSViewController {
     // How long typing must pause before the search runs.
     private static let typingDebounce: UInt64 = 100_000_000
 
-    // Row heights: every row is one line, except the selected one, which grows to
-    // fit its value up to `inlineLineLimit` lines. Longer notes show those lines
-    // inline (ending in "…") and open the full text in the side preview.
+    // Row heights: every row is one line, except a selected short note (up to
+    // `inlineLineLimit` lines), which grows to show all of it. A longer note stays
+    // one line (ending in "…") and opens in the side preview instead: showing its
+    // first lines inline as well was the same text twice.
     private let collapsedHeight: CGFloat = 48
     private let maxExpandedHeight: CGFloat = 240
-    private let inlineLineLimit = 8
-    private let valueFont = NSFont.systemFont(ofSize: 12)
+    static let inlineLineLimit = 8
+    private let valueFont = OverlayLayout.noteFont
     private lazy var valueLineHeight = NSLayoutManager().defaultLineHeight(for: valueFont)
     private let preview = NotePreviewPanel()
 
@@ -164,6 +165,27 @@ final class SearchViewController: NSViewController {
     /// The most recently saved note, if the recent-notes list is loaded.
     var newestNote: Note? { recentNotes?.first }
 
+    // Row heights and what each row's label gets both depend on the row's text
+    // width, which is unknown before the first layout (rows are then set up as
+    // one-liners). When it arrives or changes, redo the visible rows.
+    private var laidOutRowTextWidth: CGFloat?
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        let width = rowTextWidth()
+        guard width != laidOutRowTextWidth else { return }
+        laidOutRowTextWidth = width
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return }
+        let rows = IndexSet(integersIn: visible.location..<NSMaxRange(visible))
+        tableView.noteHeightOfRows(withIndexesChanged: rows)
+        for r in rows {
+            if let cell = tableView.view(atColumn: 0, row: r, makeIfNecessary: false) as? NoteCellView {
+                configure(cell, row: r, animated: false)
+            }
+        }
+    }
+
     // Called by AppDelegate each time the panel is summoned.
     func prepareForShow() {
         previewTask?.cancel()
@@ -269,7 +291,7 @@ final class SearchViewController: NSViewController {
         }
         for r in changed {
             if let cell = tableView.view(atColumn: 0, row: r, makeIfNecessary: false) as? NoteCellView {
-                cell.configure(with: results[r], expanded: r == current, animated: r == current)
+                configure(cell, row: r, animated: r == current)
             }
         }
         // Scroll only after the row has grown, so an expanding bottom row isn't
@@ -295,7 +317,7 @@ final class SearchViewController: NSViewController {
     private func updatePreview(for row: Int) {
         guard row >= 0, row < results.count,
               let window = view.window, window.isVisible,
-              exceedsInlineLimit(results[row]) else {
+              isLong(results[row]) == true else {
             preview.dismissAnimated()
             return
         }
@@ -427,37 +449,60 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
             c.identifier = id
             return c
         }()
-        cell.configure(with: results[row], expanded: row == tableView.selectedRow, animated: false)
+        configure(cell, row: row, animated: false)
         return cell
     }
 
-    // The selected row grows to fit its full value; all others are one line.
-    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        guard row >= 0, row < results.count, row == tableView.selectedRow else {
-            return collapsedHeight
-        }
-        return expandedHeight(for: results[row])
+    // The one place a row's look is decided: expanded only when selected and short.
+    private func configure(_ cell: NoteCellView, row: Int, animated: Bool) {
+        guard row >= 0, row < results.count else { return }
+        let expanded = row == tableView.selectedRow && expandsInline(results[row])
+        cell.configure(with: results[row], expanded: expanded, animated: animated && expanded,
+                       maxCharsPerLine: rowMaxCharsPerLine())
     }
 
-    // Size the selected row to show its value (key line + value + padding), up to
-    // `inlineLineLimit` lines; anything longer is read in the side preview.
-    private func expandedHeight(for note: Note) -> CGFloat {
-        guard let valueHeight = measuredValueHeight(note) else { return collapsedHeight }
+    // The selected row grows to show a short note; everything else is one line.
+    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        guard row >= 0, row < results.count, row == tableView.selectedRow,
+              expandsInline(results[row]), let valueHeight = inlineValueHeight(results[row]) else {
+            return collapsedHeight
+        }
+        // Key line + the whole (short) value + padding.
         let total = OverlayLayout.expandedRowHeight(
-            valueHeight: valueHeight, lineHeight: valueLineHeight, inlineLimit: inlineLineLimit)
+            valueHeight: valueHeight, lineHeight: valueLineHeight, inlineLimit: Self.inlineLineLimit)
         return min(max(collapsedHeight, total), expandedHeightCap())
     }
 
-    // True when the note wraps to more lines than the row shows inline.
-    private func exceedsInlineLimit(_ note: Note) -> Bool {
-        guard let valueHeight = measuredValueHeight(note) else { return false }
-        return OverlayLayout.exceedsLines(
-            textHeight: valueHeight, lineHeight: valueLineHeight, limit: inlineLineLimit)
+    // A selected note is shown inline when it's known to be short.
+    private func expandsInline(_ note: Note) -> Bool { isLong(note) == false }
+
+    // Whether the note wraps to more lines than a row shows inline; nil before
+    // the table has been laid out.
+    private func isLong(_ note: Note) -> Bool? {
+        inlineValueHeight(note).map {
+            OverlayLayout.exceedsLines(textHeight: $0, lineHeight: valueLineHeight, limit: Self.inlineLineLimit)
+        }
     }
 
-    // Height of the value wrapped at the current column width, or nil before the
-    // table has been laid out.
-    private func measuredValueHeight(_ note: Note) -> CGFloat? {
+    // The value's height at the current column width, measured from its start
+    // only (exact for a short note; over the limit for a long one), or nil before
+    // the table has been laid out.
+    private func inlineValueHeight(_ note: Note) -> CGFloat? {
+        guard let width = rowTextWidth() else { return nil }
+        return OverlayLayout.leadingTextHeight(
+            note.value, lines: Self.inlineLineLimit, width: width, font: valueFont,
+            maxCharsPerLine: rowMaxCharsPerLine())
+    }
+
+    // The most characters a row's line can hold, from the row's real text
+    // width. Before layout, the widest screen bounds it.
+    private func rowMaxCharsPerLine() -> Int {
+        let width = rowTextWidth() ?? NSScreen.screens.map(\.frame.width).max() ?? 4096
+        return OverlayLayout.maxCharsPerLine(width: width, narrowestAdvance: OverlayLayout.noteFontNarrowestAdvance)
+    }
+
+    // The width a row's value wraps at, or nil before the table has been laid out.
+    private func rowTextWidth() -> CGFloat? {
         // Cells are exactly the scroll area's width (.plain style), so the label
         // wraps at that width minus the cell's own margins on both sides.
         let horizontalInset = NoteCellView.horizontalMargin * 2
@@ -468,8 +513,7 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
         // collapsed; the next layout re-queries this with the true width.
         let contentWidth = tableView.enclosingScrollView?.contentView.bounds.width ?? tableView.bounds.width
         guard contentWidth > 120 else { return nil }
-        return OverlayLayout.textHeight(
-            note.value, width: contentWidth - horizontalInset, font: valueFont)
+        return contentWidth - horizontalInset
     }
 
     // Let a long note use the visible list area, minus one collapsed row so a
@@ -498,7 +542,7 @@ final class NoteCellView: NSTableCellView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         keyLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-        valueLabel.font = .systemFont(ofSize: 12)
+        valueLabel.font = OverlayLayout.noteFont // what the controller measures with
         valueLabel.textColor = .secondaryLabelColor
         valueLabel.lineBreakMode = .byTruncatingTail
 
@@ -531,7 +575,11 @@ final class NoteCellView: NSTableCellView {
         super.layout()
     }
 
-    func configure(with note: Note, expanded: Bool, animated: Bool) {
+    /// `expanded` shows the whole value and is only used for short notes (see
+    /// SearchViewController.expandsInline). Collapsed shows one line, given only
+    /// two lines' worth (`maxCharsPerLine`), so a long note costs no more to show:
+    /// a label lays out and draws all the text it's given, visible or not.
+    func configure(with note: Note, expanded: Bool, animated: Bool, maxCharsPerLine: Int) {
         keyLabel.stringValue = note.key
         if expanded {
             valueLabel.lineBreakMode = .byWordWrapping
@@ -541,7 +589,7 @@ final class NoteCellView: NSTableCellView {
         } else {
             valueLabel.lineBreakMode = .byTruncatingTail
             valueLabel.maximumNumberOfLines = 1
-            valueLabel.stringValue = note.value.replacingOccurrences(of: "\n", with: " ")
+            valueLabel.stringValue = OverlayLayout.oneLineSummary(note.value, maxCharsPerLine: maxCharsPerLine)
             valueLabel.textColor = .secondaryLabelColor
         }
 

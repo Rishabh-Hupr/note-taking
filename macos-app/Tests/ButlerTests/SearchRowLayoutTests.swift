@@ -57,7 +57,9 @@ import Testing
                 valueHeight: valueHeight, lineHeight: lineHeight, inlineLimit: 8)
 
             let cell = NoteCellView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
-            cell.configure(with: note, expanded: true, animated: false)
+            cell.configure(with: note, expanded: true, animated: false,
+                           maxCharsPerLine: OverlayLayout.maxCharsPerLine(
+                               width: width, narrowestAdvance: OverlayLayout.narrowestAdvance(font)))
             cell.widthAnchor.constraint(equalToConstant: width).isActive = true
             cell.layoutSubtreeIfNeeded()
             let needed = cell.fittingSize.height

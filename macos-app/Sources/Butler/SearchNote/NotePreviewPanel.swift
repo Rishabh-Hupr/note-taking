@@ -20,7 +20,7 @@ final class NotePreviewPanel: NSPanel {
     private func textWidth(forPanelWidth width: CGFloat) -> CGFloat {
         width - padding * 2 - scrollerGutter
     }
-    private let textFont = NSFont.systemFont(ofSize: 12)
+    private let textFont = OverlayLayout.noteFont
     private lazy var lineHeight = NSLayoutManager().defaultLineHeight(for: textFont)
     private lazy var keyLineHeight = NSLayoutManager().defaultLineHeight(for: keyFont)
     private var oneKeyLine: CGFloat { ceil(keyLineHeight) } // the header's minimum height
@@ -108,6 +108,9 @@ final class NotePreviewPanel: NSPanel {
         ])
     }
 
+    /// True while the text view uses TextKit 2 (lays out only what's visible).
+    var usesViewportLayout: Bool { textView.textLayoutManager != nil }
+
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
@@ -127,7 +130,12 @@ final class NotePreviewPanel: NSPanel {
             parent: parent.frame, visible: visible,
             preferredWidth: Self.preferredWidth, minWidth: Self.minWidth)
         let wrapWidth = textWidth(forPanelWidth: width)
-        let textHeight = OverlayLayout.textHeight(note.value, width: wrapWidth, font: textFont)
+        // Measured from the note's start only: the panel shows at most
+        // maxVisibleLines before scrolling, so the rest can't change its size.
+        let textHeight = OverlayLayout.leadingTextHeight(
+            note.value, lines: maxVisibleLines, width: wrapWidth, font: textFont,
+            maxCharsPerLine: OverlayLayout.maxCharsPerLine(
+                width: wrapWidth, narrowestAdvance: OverlayLayout.noteFontNarrowestAdvance))
         let textAreaHeight = OverlayLayout.previewTextAreaHeight(
             textHeight: textHeight, lineHeight: lineHeight, maxLines: maxVisibleLines)
         // Key height at this width (wrapped, capped at maxKeyLines) is part of the
@@ -147,6 +155,8 @@ final class NotePreviewPanel: NSPanel {
         let target = NSRect(x: x, y: y, width: width, height: height)
 
         // The text view itself stays as tall as its content (that's the scroll range).
+        // It holds the whole note but lays out only what's on screen (TextKit 2:
+        // a 1.5MB note draws as fast as a 6KB one), and sizeToFit just estimates.
         textView.textContainer?.containerSize = NSSize(width: wrapWidth, height: .greatestFiniteMagnitude)
         textView.frame.size.width = width - padding * 2
         if isNewNote {

@@ -12,11 +12,78 @@ enum OverlayLayout {
     static let lineSlack: CGFloat = 2
 
     /// Height of `text` wrapped at `width` in `font`.
+    ///
+    /// Laid out with TextKit rather than `NSString.boundingRect`: the heights are
+    /// identical (except "", 14pt here versus 15; empty notes can't be saved),
+    /// but boundingRect slows down sharply on long notes: 145ms for a 6KB,
+    /// 116-line note versus 2.6ms here, and a selection measured its note 3 times.
     static func textHeight(_ text: String, width: CGFloat, font: NSFont) -> CGFloat {
-        ceil((text as NSString).boundingRect(
-            with: NSSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: font]).height)
+        let storage = NSTextStorage(string: text, attributes: [.font: font])
+        let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0 // boundingRect has none either
+        let layoutManager = NSLayoutManager()
+        layoutManager.addTextContainer(container)
+        storage.addLayoutManager(layoutManager)
+        layoutManager.ensureLayout(for: container)
+        return ceil(layoutManager.usedRect(for: container).height)
+    }
+
+    /// The font note text is shown in: the search rows and the side preview.
+    static let noteFont = NSFont.systemFont(ofSize: 12)
+    /// `noteFont`'s narrowest character (see narrowestAdvance), measured once.
+    static let noteFontNarrowestAdvance = narrowestAdvance(noteFont)
+
+    /// Advance of the narrowest printable ASCII character in `font` (in the
+    /// system font, "i"/"l"/"'" are the narrowest characters, at about 0.24em).
+    static func narrowestAdvance(_ font: NSFont) -> CGFloat {
+        (32...126).map { code in
+            (String(UnicodeScalar(UInt8(code))) as NSString).size(withAttributes: [.font: font]).width
+        }.filter { $0 > 0 }.min() ?? 1
+    }
+
+    /// More characters than one line `width` wide can hold, even all in the
+    /// narrowest character.
+    static func maxCharsPerLine(width: CGFloat, narrowestAdvance: CGFloat) -> Int {
+        Int((width / narrowestAdvance).rounded(.up)) + 1
+    }
+
+    /// The start of `text`: its first `lines + 1` lines, cut to at most
+    /// `maxCharsPerLine` × (`lines` + 2) characters. Short enough that measuring
+    /// it costs the same for any note, and long enough to decide everything the
+    /// screen needs: if `text` wraps to more than `lines` lines, so does this.
+    /// (Either it's all of `text`, or it has `lines + 1` lines, or it has more
+    /// characters than `lines + 1` lines can hold; the + 2 leaves room for the
+    /// line breaks themselves.) Known, accepted gap: that assumes every character
+    /// takes room, so a huge run of spaces (which hang at a line's end) or
+    /// zero-width characters early in a note could make a long note look short:
+    /// it would then expand inline instead of opening the preview. Not seen in
+    /// real notes; if it ever is, re-measure with a doubled excerpt until it
+    /// overflows or covers the whole note.
+    static func leadingExcerpt(_ text: String, lines: Int, maxCharsPerLine: Int) -> Substring {
+        let capped = text.prefix(maxCharsPerLine * (lines + 2))
+        var breaks = 0
+        // isNewline covers every break TextKit wraps on: \n, \r\n, \r, U+2028…
+        guard let end = capped.firstIndex(where: { char in
+            if char.isNewline { breaks += 1 }
+            return breaks > lines
+        }) else { return capped }
+        return capped[..<end]
+    }
+
+    /// Height of `text` as `textHeight` would measure it, as long as that's at
+    /// most `lines` lines; for longer text, some height over `lines` lines. That's
+    /// all a capped view needs (does it fit? how tall up to the cap?), and only
+    /// the start of the note is laid out, so a 1MB note costs what a short one does.
+    static func leadingTextHeight(_ text: String, lines: Int, width: CGFloat, font: NSFont,
+                                  maxCharsPerLine: Int) -> CGFloat {
+        textHeight(String(leadingExcerpt(text, lines: lines, maxCharsPerLine: maxCharsPerLine)),
+                   width: width, font: font)
+    }
+
+    /// `text` on one line for a collapsed row: line breaks become spaces, and
+    /// only two lines' worth is kept (the label shows one, then "…").
+    static func oneLineSummary(_ text: String, maxCharsPerLine: Int) -> String {
+        String(text.prefix(maxCharsPerLine * 2).map { $0.isNewline ? " " : $0 })
     }
 
     /// Selected search row: key line + value (up to `inlineLimit` lines) + padding.

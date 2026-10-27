@@ -32,6 +32,159 @@ import Testing
                 > OverlayLayout.textHeight(text, width: 400, font: font))
     }
 
+    // A long, structured note (headings, indented lines, no-break spaces), the
+    // shape of the real 6KB note that froze the preview.
+    private var longStructuredNote: String {
+        (1...116).map { i in
+            i % 7 == 0 ? "SECTION \(i)\n--------"
+                : "  \u{a0}\u{a0}step \(i): ALB authenticate-oidc → lambda (regional_stack.ts), cookie=AWSELB \(i)"
+        }.joined(separator: "\n")
+    }
+
+    // Same heights as NSString.boundingRect, which the views were sized by before.
+    @Test func textHeightMatchesBoundingRect() {
+        let texts = [lines(1), lines(9), String(repeating: "word ", count: 300),
+                     "unbroken" + String(repeating: "x", count: 400), "emoji 📒✅ and ünïcödé\n\nblank above",
+                     longStructuredNote]
+        for text in texts {
+            for width in [150, 300, 374, 388, 600] as [CGFloat] {
+                let expected = ceil((text as NSString).boundingRect(
+                    with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: [.font: font]).height)
+                #expect(OverlayLayout.textHeight(text, width: width, font: font) == expected,
+                        "width \(width), text \(text.prefix(20))")
+            }
+        }
+    }
+
+    // The one difference from boundingRect: "" (empty notes can't be saved).
+    @Test func emptyTextIsTheOneDifference() {
+        let bounding = ceil(("" as NSString).boundingRect(
+            with: NSSize(width: 300, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]).height)
+        #expect(OverlayLayout.textHeight("", width: 300, font: font) == bounding - 1)
+    }
+
+    // Each selection measures its note several times on the main thread, so this
+    // must stay cheap. Timed against boundingRect (what it replaced, ~50× slower
+    // on this text) in the same run, best of 5 each, so other tests running in
+    // parallel slow both alike instead of failing a fixed time limit.
+    @Test func textHeightIsFastForLongNotes() {
+        let text = longStructuredNote
+        func bestMs(_ measure: () -> Void) -> Double {
+            (0..<5).map { _ in
+                let start = DispatchTime.now().uptimeNanoseconds
+                measure()
+                return Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
+            }.min()!
+        }
+        let textKit = bestMs { _ = OverlayLayout.textHeight(text, width: 374, font: font) }
+        let boundingRect = bestMs {
+            _ = (text as NSString).boundingRect(
+                with: NSSize(width: 374, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font])
+        }
+        #expect(textKit * 5 < boundingRect, "TextKit \(textKit)ms vs boundingRect \(boundingRect)ms")
+    }
+
+    // MARK: Measuring only the start of a note
+
+    private func maxChars(width: CGFloat, font f: NSFont) -> Int {
+        OverlayLayout.maxCharsPerLine(width: width, narrowestAdvance: OverlayLayout.narrowestAdvance(f))
+    }
+
+    @Test func leadingExcerptKeepsShortNotesWhole() {
+        #expect(OverlayLayout.leadingExcerpt(lines(8), lines: 8, maxCharsPerLine: 300) == lines(8)[...])
+        #expect(OverlayLayout.leadingExcerpt(lines(9), lines: 8, maxCharsPerLine: 300) == lines(9)[...])
+    }
+
+    @Test func leadingExcerptStopsOneLinePastTheLimit() {
+        let cut = OverlayLayout.leadingExcerpt(longStructuredNote, lines: 8, maxCharsPerLine: 300)
+        #expect(longStructuredNote.hasPrefix(cut))
+        #expect(cut.split(separator: "\n", omittingEmptySubsequences: false).count == 9)
+    }
+
+    // Windows (\r\n), old-Mac (\r) and Unicode line breaks count as lines too:
+    // TextKit wraps on all of them.
+    @Test(arguments: ["\r\n", "\r", "\u{2028}", "\u{2029}", "\u{85}", "\u{0B}", "\u{0C}"])
+    func leadingExcerptCountsEveryLineBreak(separator: String) {
+        let text = (1...30).map { "line \($0)" }.joined(separator: separator)
+        let cut = OverlayLayout.leadingExcerpt(text, lines: 8, maxCharsPerLine: 300)
+        #expect(cut == (1...9).map { "line \($0)" }.joined(separator: separator)[...])
+    }
+
+    // The core guarantee: measuring only the start gives the same answers a
+    // capped view needs. Exact height when the note fits; over the limit when it
+    // doesn't. Checked across note shapes, widths and font sizes.
+    @Test(arguments: [300, 592, 1200, 2560] as [CGFloat])
+    func leadingTextHeightAnswersLikeTheWholeNote(width: CGFloat) {
+        let texts = [lines(1), lines(8), lines(9), lines(60), longStructuredNote,
+                     String(repeating: "word ", count: 5000), String(repeating: "i", count: 20000),
+                     String(repeating: "l\u{27}.", count: 7000), "a\r\nb\r\n" + String(repeating: "x ", count: 8000),
+                     String(repeating: "\n", count: 3) + String(repeating: "x ", count: 8000),
+                     String(repeating: "漢字かな ", count: 3000)]
+        for size in [9, 12, 16] as [CGFloat] {
+            let f = NSFont.systemFont(ofSize: size)
+            let lh = NSLayoutManager().defaultLineHeight(for: f)
+            for limit in [8, 50] {
+                for text in texts {
+                    let whole = OverlayLayout.textHeight(text, width: width, font: f)
+                    let lead = OverlayLayout.leadingTextHeight(text, lines: limit, width: width, font: f,
+                                                               maxCharsPerLine: maxChars(width: width, font: f))
+                    let fits = !OverlayLayout.exceedsLines(textHeight: whole, lineHeight: lh, limit: limit)
+                    let label = "\(size)pt, \(width)pt, \(limit) lines, \(text.prefix(12).debugDescription)"
+                    #expect(OverlayLayout.exceedsLines(textHeight: lead, lineHeight: lh, limit: limit) == !fits, "\(label)")
+                    if fits { #expect(lead == whole, "\(label)") }
+                }
+            }
+        }
+    }
+
+    // The per-line cap really is more than a line holds in the narrowest character.
+    @Test(arguments: [300, 592, 1200, 2560] as [CGFloat])
+    func maxCharsPerLineOverflowsOneLine(width: CGFloat) {
+        for size in [9, 12, 16] as [CGFloat] {
+            let f = NSFont.systemFont(ofSize: size)
+            let n = maxChars(width: width, font: f)
+            for char in ["i", "l", "'", ".", "|"] {
+                let line = String(repeating: char, count: n)
+                #expect(OverlayLayout.textHeight(line, width: width, font: f)
+                        > NSLayoutManager().defaultLineHeight(for: f) * 1.5,
+                        "\(n) × \(char) fits one \(width)pt line at \(size)pt")
+            }
+        }
+    }
+
+    // Landing on a note must cost the same however long it is: a 1.5MB note is
+    // timed against the 6KB one, alternating so tests running in parallel load
+    // both alike, best of 10 each.
+    @Test func leadingTextHeightCostDoesNotGrowWithTheNote() {
+        let small = longStructuredNote
+        let huge = String(repeating: small + "\n", count: 250)
+        let chars = maxChars(width: 374, font: font)
+        func ms(_ text: String) -> Double {
+            let start = DispatchTime.now().uptimeNanoseconds
+            _ = OverlayLayout.leadingTextHeight(text, lines: 50, width: 374, font: font, maxCharsPerLine: chars)
+            return Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
+        }
+        var smallMs = Double.infinity, hugeMs = Double.infinity
+        for _ in 0..<10 {
+            smallMs = min(smallMs, ms(small))
+            hugeMs = min(hugeMs, ms(huge))
+        }
+        #expect(hugeMs < smallMs * 3 + 1, "1.5MB note \(hugeMs)ms vs 6KB \(smallMs)ms")
+    }
+
+    @Test func oneLineSummaryJoinsLinesAndStaysShort() {
+        let summary = OverlayLayout.oneLineSummary("a\r\nb\nc\u{2028}d" + String(repeating: "x", count: 5000),
+                                                   maxCharsPerLine: 100)
+        #expect(summary.hasPrefix("a b c d"))
+        let hasLineBreak = summary.contains { $0.isNewline }
+        #expect(!hasLineBreak)
+        #expect(summary.count == 200)
+    }
+
     // MARK: Inline 8-line threshold
 
     @Test func eightLinesStayInline() {
