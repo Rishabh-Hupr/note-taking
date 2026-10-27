@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-27
+
+### Bug fixes
+- **Long notes no longer lag when you move onto them.** Selecting a long note (6KB
+  or more) froze the list and its side preview for nearly a second every time.
+  Butler laid out and measured the whole note to show a few lines of it. It now
+  looks only at the start of a note, so moving onto any note costs the same few
+  milliseconds however long it is (tested up to 1.5MB).
+
+### Changes
+- **A long note's row no longer expands when selected.** It stays one line ending in
+  "…" while the side preview shows the full text. It used to show its first 8 lines
+  in the list as well: the same text twice. Notes of up to 8 lines still expand in
+  place as before.
+
 ## 2026-10-18
 
 ### New features

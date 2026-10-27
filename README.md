@@ -7,8 +7,9 @@ global hotkey. A minimalist, Spotlight-style knowledge base.
 - **⌘⌥F** — search: type to filter (matches keys **and** values), ↑/↓ to move,
   **Enter** to copy the selected note to the clipboard, **⌘D** to delete it
   (a short "Deleted" confirmation shows at the bottom), **Esc**/click-away to
-  dismiss. The selected note expands to show its text; notes over 8 lines also
-  open the full text in a side preview (scrollable past 50 lines).
+  dismiss. A selected note of up to 8 lines expands to show its text; a longer
+  one stays one line and opens in a side preview instead (scrollable past 50
+  lines).
 - **⌘⌥P** — add a note: type a **Key** and **Value**, **⌘Return** to save
   (**Enter** inserts a newline in the value), **Esc** to cancel. A green "Saved"
   tick confirms it. Leading/trailing spaces and blank lines are trimmed.

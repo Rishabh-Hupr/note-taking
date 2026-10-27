@@ -105,7 +105,7 @@ sequenceDiagram
         SV->>SC: fetch("")
         SC-->>SV: notes → fill list, store in cache
     end
-    SV->>SV: preview after selection settles 0.1s (long notes only)
+    SV->>SV: short note (≤8 lines): row expands · long: row stays one line, preview after 0.1s settle
     AD->>AD: log "⏱ open show= prepare= firstFrame= total="
 ```
 

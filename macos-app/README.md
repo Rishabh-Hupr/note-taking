@@ -4,7 +4,8 @@ Native AppKit overlay for the Butler note store. Resident agent (no Dock icon)
 with two hotkeys:
 - **⌘⌥F** — search: type to filter notes, ↑/↓ to move, **Enter** to copy the
   selected note to the clipboard, **⌘D** to delete it, **Esc**/click-away to
-  dismiss. Notes over 8 lines open in a side preview.
+  dismiss. Notes of up to 8 lines expand in place; longer ones stay one line and
+  open in a side preview.
 - **⌘⌥P** — put: enter a Key and Value, **⌘Return** to save (**Enter** adds a
   newline), **Esc** to cancel.
 
@@ -55,7 +56,9 @@ cd macos-app && swift test
 Uses **Swift Testing** (XCTest isn't available with Command Line Tools alone).
 Tests cover the Go↔Swift JSON wire contract (`ModelsTests`) and the pure overlay
 layout rules in `Layout.swift` — text sizing, the 8-line inline / 50-line preview
-caps, preview placement, and remembered panel positions (`LayoutTests`).
+caps, preview placement, and remembered panel positions (`LayoutTests`). Long
+notes are measured from their start only, and a test checks a 1.5MB note costs
+what a 6KB one does.
 
 ## Status
 - ✅ Summon/dismiss, vibrancy panel, live search, ↑/↓ nav, Enter→copy, ⌘D delete

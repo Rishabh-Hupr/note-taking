@@ -139,6 +139,32 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
   (📒 → Last-Note Reminder: Off / 30m / 1h / 2h / 4h), saved in `UserDefaults`
   (`butler.lastNoteHintInterval`, 0 = off), applied immediately.
   `BUTLER_HINT_INTERVAL=<sec>` overrides it for testing.
+- **Long-note lag: cost bounded by the screen, not the note.** Landing on a 6KB/116-line note
+  froze ↑/↓ and the preview for about 0.8s. Root cause: the code measured and laid out the
+  whole note to show at most 9 lines (row) or 50 (preview).
+  - `OverlayLayout.textHeight` uses TextKit (`NSLayoutManager`) instead of
+    `NSString.boundingRect`: identical heights, 2.6ms instead of 145ms.
+  - Every height question is answered from the note's start (`leadingExcerpt` /
+    `leadingTextHeight`): the first `lines + 1` lines (any `isNewline` break), capped at
+    `maxCharsPerLine × (lines + 2)` characters. `maxCharsPerLine` comes from the real width
+    and the font's narrowest printable character. Exact when the note fits; over the limit
+    when it doesn't. Tested across widths 300–2560pt, fonts 9–16pt and odd note shapes. A
+    1.5MB note costs what a 6KB one does, timed against it in the same test.
+  - A long note's selected row stays one line ("…"); only notes of up to 8 lines expand
+    (the user's call: the preview already shows the text). The collapsed label gets two
+    lines' worth (`oneLineSummary`), not the whole note.
+  - The preview's text view already lays out only what's on screen (TextKit 2; a 1.5MB
+    note draws as fast as 6KB); a test guards that it stays on TextKit 2.
+  - Known, accepted gap (2026-10-28): the excerpt assumes every character takes room, so a
+    huge run of spaces (they hang at a line's end) or zero-width characters early in a note
+    could make a long note look short; it would expand inline instead of opening the preview.
+    Trimming on save only covers the ends. Not seen in real notes; if it shows up, re-measure
+    with a doubled excerpt until it overflows or covers the whole note.
+  - Reviewed: the font is shared (`OverlayLayout.noteFont`), cells are redone when the row
+    width first arrives or changes, and a test checks opening the preview on a 1.5MB note
+    costs what a 6KB one does. No measurement cache: about 0.6ms × 3 per selection isn't worth it.
+  - Later, not now: search results carry every note's full text over the pipe; if notes
+    get big, send key + snippet (FTS5 `snippet()`) and fetch the full text on select.
 - `launch-butler.sh` — builds both halves, launches backgrounded, idempotent reruns.
 - Accurate root `README.md`; repo history rewritten to the personal GitHub identity.
 - **DB upkeep + backups** (`go-rewrite/maintenance.go`, a background goroutine; schedule in
