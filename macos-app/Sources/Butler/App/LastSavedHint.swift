@@ -42,15 +42,9 @@ enum LastSavedHint {
     /// How long the hint stays before shrinking back.
     static let visibleFor: TimeInterval = 20
 
-    private static let parser: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime] // the backend's RFC3339, e.g. 2026-10-17T09:00:00Z
-        return f
-    }()
-
     /// "last note 3h ago" for a note's `updated_at`, or "no notes yet".
     static func text(newestUpdatedAt: String?, now: Date = Date()) -> String {
-        guard let stamp = newestUpdatedAt, let saved = parser.date(from: stamp) else {
+        guard let stamp = newestUpdatedAt, let saved = NoteTimestamp.date(from: stamp) else {
             return "no notes yet"
         }
         return "last note \(relative(from: saved, to: now))"

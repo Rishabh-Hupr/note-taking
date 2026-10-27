@@ -47,9 +47,9 @@ import Testing
         for repeats in [1, 2, 4, 7, 10, 14, 18] {
             let note = Note(id: repeats, key: "key \(repeats)",
                             value: String(repeating: sentence, count: repeats),
-                            createdAt: "", updatedAt: "", rank: 0)
+                            createdAt: "", updatedAt: "2026-09-12T17:35:00Z", rank: 0)
             let valueHeight = OverlayLayout.textHeight(
-                note.value, width: width - NoteCellView.horizontalMargin * 2, font: font)
+                note.value, width: NoteCellView.textWidth(forCellWidth: width), font: font)
             guard !OverlayLayout.exceedsLines(textHeight: valueHeight, lineHeight: lineHeight, limit: 8)
             else { continue } // longer notes are truncated inline by design
 

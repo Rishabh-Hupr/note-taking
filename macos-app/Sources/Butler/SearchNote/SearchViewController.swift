@@ -504,8 +504,7 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
     // The width a row's value wraps at, or nil before the table has been laid out.
     private func rowTextWidth() -> CGFloat? {
         // Cells are exactly the scroll area's width (.plain style), so the label
-        // wraps at that width minus the cell's own margins on both sides.
-        let horizontalInset = NoteCellView.horizontalMargin * 2
+        // wraps at the cell's text width for that (margins and timestamp column off).
         // Measure against the clip view's width (the actual content area), not the
         // table's bounds: when a vertical scroller is shown it narrows the usable
         // width, and measuring too wide would under-count wrapped lines and clip
@@ -513,7 +512,7 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
         // collapsed; the next layout re-queries this with the true width.
         let contentWidth = tableView.enclosingScrollView?.contentView.bounds.width ?? tableView.bounds.width
         guard contentWidth > 120 else { return nil }
-        return contentWidth - horizontalInset
+        return NoteCellView.textWidth(forCellWidth: contentWidth)
     }
 
     // Let a long note use the visible list area, minus one collapsed row so a
@@ -536,8 +535,44 @@ final class NoteCellView: NSTableCellView {
     /// row inset + 8pt stack padding).
     static let horizontalMargin: CGFloat = 24
 
+    // The "when" column at the row's right end (see NoteTimestamp).
+    static let timestampDayFont = NSFont.systemFont(ofSize: 11)
+    static let timestampTimeFont = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .regular)
+    static let timestampGap: CGFloat = 12
+    /// Closer to the row's right edge than the text margin: just inside the
+    /// rounded selection highlight (inset 10pt).
+    static let timestampTrailingMargin: CGFloat = 16
+    /// The timestamp as drawn: the day, with the time under it a little smaller,
+    /// right-aligned (an attributed string's own alignment beats the label's).
+    static func timestampText(day: String, time: String) -> NSAttributedString {
+        let right = NSMutableParagraphStyle()
+        right.alignment = .right
+        let quiet: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.tertiaryLabelColor, .paragraphStyle: right]
+        let text = NSMutableAttributedString(string: day + "\n", attributes: quiet.merging([.font: timestampDayFont]) { $1 })
+        text.append(NSAttributedString(string: time, attributes: quiet.merging([.font: timestampTimeFont]) { $1 }))
+        return text
+    }
+
+    /// Wide enough for any timestamp: the widest day (date, weekday) with the
+    /// widest time, measured as drawn.
+    static let timestampColumnWidth: CGFloat = {
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        let days = months.map { "28 \($0) 2088" } + weekdays + ["Today", "Yesterday"]
+        return ceil(days.flatMap { day in ["12:59 AM", "12:59 PM"].map { timestampText(day: day, time: $0) } }
+            .map { $0.size().width }.max() ?? 0)
+    }()
+
+    /// The width a row's key and value wrap at, in a cell `cellWidth` wide: the
+    /// cell minus its margins and the timestamp column. The controller measures
+    /// with this and the label wraps at it, so the two can't disagree.
+    static func textWidth(forCellWidth cellWidth: CGFloat) -> CGFloat {
+        max(0, cellWidth - horizontalMargin - timestampGap - timestampColumnWidth - timestampTrailingMargin)
+    }
+
     private let keyLabel = NSTextField(labelWithString: "")
     private let valueLabel = NSTextField(labelWithString: "")
+    private let timestampLabel = NSTextField(labelWithString: "")
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -552,6 +587,12 @@ final class NoteCellView: NSTableCellView {
         valueLabel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         keyLabel.setContentCompressionResistancePriority(.required, for: .vertical)
 
+        timestampLabel.font = Self.timestampDayFont // colours and alignment: see timestampText
+        timestampLabel.maximumNumberOfLines = 2 // day, then time
+        timestampLabel.lineBreakMode = .byClipping
+        timestampLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(timestampLabel)
+
         let stack = NSStackView(views: [keyLabel, valueLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -559,19 +600,24 @@ final class NoteCellView: NSTableCellView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         // Pinned to the top (not centered): a centered stack taller than its row
-        // overflows both edges, pushing the key out of view on long notes.
+        // overflows both edges, pushing the key out of view on long notes. The
+        // timestamp's day sits on the key's line and its time under it, right-
+        // aligned in a fixed-width column.
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalMargin),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalMargin),
+            stack.trailingAnchor.constraint(equalTo: timestampLabel.leadingAnchor, constant: -Self.timestampGap),
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 7),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -7),
+            timestampLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.timestampTrailingMargin),
+            timestampLabel.widthAnchor.constraint(equalToConstant: Self.timestampColumnWidth),
+            timestampLabel.firstBaselineAnchor.constraint(equalTo: keyLabel.firstBaselineAnchor),
         ])
     }
     required init?(coder: NSCoder) { fatalError("not used") }
 
     override func layout() {
         // Wrap the value at the cell's real width so its height is measured correctly.
-        valueLabel.preferredMaxLayoutWidth = max(0, bounds.width - Self.horizontalMargin * 2)
+        valueLabel.preferredMaxLayoutWidth = Self.textWidth(forCellWidth: bounds.width)
         super.layout()
     }
 
@@ -581,6 +627,11 @@ final class NoteCellView: NSTableCellView {
     /// a label lays out and draws all the text it's given, visible or not.
     func configure(with note: Note, expanded: Bool, animated: Bool, maxCharsPerLine: Int) {
         keyLabel.stringValue = note.key
+        if let when = NoteTimestamp.parts(updatedAt: note.updatedAt) {
+            timestampLabel.attributedStringValue = Self.timestampText(day: when.day, time: when.time)
+        } else {
+            timestampLabel.stringValue = ""
+        }
         if expanded {
             valueLabel.lineBreakMode = .byWordWrapping
             valueLabel.maximumNumberOfLines = 0
