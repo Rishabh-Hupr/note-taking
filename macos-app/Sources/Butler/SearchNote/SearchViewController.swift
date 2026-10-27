@@ -29,7 +29,6 @@ final class SearchViewController: NSViewController {
     private let searchField = SearchField()
     private let tableView = NSTableView()
     private let hintLabel = NSTextField(labelWithString: "")
-    private let defaultHint = "↑↓ navigate    ⏎ copy    ⌘D delete    ⎋ close"
     // Bumped per hint flash, so an older flash's timer can't restore the hints
     // over a newer message.
     private var hintGeneration = 0
@@ -94,9 +93,7 @@ final class SearchViewController: NSViewController {
 
         // Persistent shortcut hint, mirroring the Put dialog's footer so the
         // available actions (notably ⌘D to delete) are always discoverable.
-        hintLabel.font = .systemFont(ofSize: 11)
-        hintLabel.textColor = .secondaryLabelColor
-        hintLabel.stringValue = defaultHint
+        hintLabel.attributedStringValue = ShortcutHints.text(ShortcutHints.search)
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hintLabel)
 
@@ -383,9 +380,7 @@ final class SearchViewController: NSViewController {
 
     private func resetHint() {
         hintGeneration += 1
-        hintLabel.stringValue = defaultHint
-        hintLabel.textColor = .secondaryLabelColor
-        hintLabel.font = .systemFont(ofSize: 11)
+        hintLabel.attributedStringValue = ShortcutHints.text(ShortcutHints.search)
     }
 }
 

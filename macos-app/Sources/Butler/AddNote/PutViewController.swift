@@ -124,8 +124,7 @@ final class PutViewController: NSViewController {
         valueView.nextKeyView = keyField
 
         statusLabel.font = .systemFont(ofSize: 11)
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.stringValue = "⌘⏎ save    ⏎ newline    ⎋ cancel"
+        showShortcuts()
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
         [keyField, scroll, statusLabel].forEach { view.addSubview($0) }
@@ -155,11 +154,15 @@ final class PutViewController: NSViewController {
     func prepareForShow() {
         showGeneration += 1
         savedBadge.hide()
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.stringValue = "⌘⏎ save    ⏎ newline    ⎋ cancel"
+        showShortcuts()
         valueView.needsDisplay = true
         // Resume where you left off: value if the key is already filled, else key.
         view.window?.makeFirstResponder(keyField.stringValue.isEmpty ? keyField : valueView)
+    }
+
+    // The shortcut hints in the status line (replaced by errors until the next show).
+    private func showShortcuts() {
+        statusLabel.attributedStringValue = ShortcutHints.text(ShortcutHints.put)
     }
 
     private func save() {
@@ -168,6 +171,7 @@ final class PutViewController: NSViewController {
         // Blank lines alone don't count as a value (the backend also trims
         // leading/trailing whitespace off whatever is saved).
         guard !key.isEmpty, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            statusLabel.textColor = .secondaryLabelColor
             statusLabel.stringValue = "Both key and value are required"
             return
         }
