@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-28
+
+### New features
+- **Each note in search shows when it was last changed,** quietly, at the right of
+  its title: "Today", "Yesterday", the weekday within the last week ("Monday"),
+  then the date ("12 Sep"; with the year once it's over a year old), and the time
+  in small type underneath.
+- **The shortcut hints at the bottom of the search and add-note windows are in
+  colour,** one per action: navigate blue, copy green, delete red, save green,
+  newline blue, close/cancel grey.
+
 ## 2026-10-27
 
 ### Bug fixes

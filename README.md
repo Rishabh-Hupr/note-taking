@@ -9,7 +9,8 @@ global hotkey. A minimalist, Spotlight-style knowledge base.
   (a short "Deleted" confirmation shows at the bottom), **Esc**/click-away to
   dismiss. A selected note of up to 8 lines expands to show its text; a longer
   one stays one line and opens in a side preview instead (scrollable past 50
-  lines).
+  lines). Each row shows when the note last changed: "Today", "Yesterday",
+  "Monday" or "12 Sep" (the year once it's over a year old), time underneath.
 - **⌘⌥P** — add a note: type a **Key** and **Value**, **⌘Return** to save
   (**Enter** inserts a newline in the value), **Esc** to cancel. A green "Saved"
   tick confirms it. Leading/trailing spaces and blank lines are trimmed.

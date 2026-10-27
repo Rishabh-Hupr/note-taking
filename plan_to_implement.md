@@ -165,6 +165,16 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
     costs what a 6KB one does. No measurement cache: about 0.6ms × 3 per selection isn't worth it.
   - Later, not now: search results carry every note's full text over the pipe; if notes
     get big, send key + snippet (FTS5 `snippet()`) and fetch the full text on select.
+- **Row timestamps** (`NoteTimestamp`, 2026-10-28): `updated_at` in local time. The day on the
+  key's baseline ("Today", "Yesterday", weekday within 6 days, else "d MMM", plus "yyyy" once
+  over a year old), the time ("h:mm a", fixed English) under it in 9.5pt. Tertiary grey, so
+  it reads as detail; right-aligned via the attributed string's own paragraph style. Fixed-
+  width column sized from the widest day + time as drawn, 16pt from the right edge (just
+  inside the selection highlight). Iterated with the user: 11pt secondary looked noisy. `NoteCellView.textWidth(forCellWidth:)` is the one row text width: the
+  controller measures with it and the label wraps at it. LastSavedHint shares the parser.
+- **Coloured shortcut hints** (`ShortcutHints`): one table per window, each hint (keys and
+  word) in its colour. Chosen after trying three styles side by side (coloured keys only,
+  whole hint, key caps); the other two were removed.
 - `launch-butler.sh` — builds both halves, launches backgrounded, idempotent reruns.
 - Accurate root `README.md`; repo history rewritten to the personal GitHub identity.
 - **DB upkeep + backups** (`go-rewrite/maintenance.go`, a background goroutine; schedule in
@@ -180,6 +190,24 @@ Hotkeys today: **⌘⌥F** search, **⌘⌥P** add.
 ---
 
 ## 🔜 Next steps
+
+### Mouse support (navigate the whole app with the mouse too)
+Today Butler is keyboard-only: clicks on the list are ignored on purpose
+(`selectionShouldChange` returns false) so focus never leaves the search field.
+Make every action reachable by mouse without breaking that:
+- **Search list:** click a row to select it (expands it or opens the preview, the
+  same as ↑/↓). Double-click copies it (the same as ⏎). Hover highlights. Keep the
+  search field focused after a click so typing still works.
+- **Row actions:** a way to delete with the mouse, such as a right-click menu (Copy /
+  Delete) or a small button on hover, with the same "Deleted" confirmation as ⌘D.
+- **Hints become buttons:** the footer hints (navigate / copy / delete / close, save /
+  cancel) are clickable and do their action.
+- **Add note:** clickable Save / Cancel. Clicking the value area already works.
+- **Preview:** already scrolls with the trackpad; clicking it could copy the note or
+  select text (it's currently not selectable).
+- **Watch-outs:** the panels are non-activating, so a click mustn't steal focus from
+  the app underneath or dismiss the overlay (it closes when it loses key). Check
+  click-to-select against the expand animation and the 0.1s preview delay.
 
 ### Configurable hotkeys
 - Let users rebind the search / put combos instead of hard-coded ⌘⌥F / ⌘⌥P.

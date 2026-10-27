@@ -5,7 +5,7 @@ with two hotkeys:
 - **⌘⌥F** — search: type to filter notes, ↑/↓ to move, **Enter** to copy the
   selected note to the clipboard, **⌘D** to delete it, **Esc**/click-away to
   dismiss. Notes of up to 8 lines expand in place; longer ones stay one line and
-  open in a side preview.
+  open in a side preview. Each row shows when the note last changed.
 - **⌘⌥P** — put: enter a Key and Value, **⌘Return** to save (**Enter** adds a
   newline), **Esc** to cancel.
 
@@ -18,9 +18,11 @@ Finder search — so F/P are used instead.)
 - `App/` — `main.swift` (entry point, `.accessory` agent policy) and `AppDelegate.swift`
   (launches the backend, registers hotkeys, owns the panels and menu-bar item).
 - `SearchNote/` — `SearchViewController` (search field, results, ↑/↓, ⏎ copy, ⌘D
-  delete) and `NotePreviewPanel` (side preview for long notes).
+  delete), `NotePreviewPanel` (side preview for long notes) and `NoteTimestamp`
+  (the "Today / Yesterday / Monday / 12 Sep" + time shown on each row).
 - `AddNote/` — `PutViewController` (key + multi-line value, save).
-- `Overlay/` — `OverlayPanel` (borderless floating `NSPanel`), `ConfirmationBadge`
+- `Overlay/` — `ShortcutHints` (the coloured footer hints, one table for both windows),
+  `OverlayPanel` (borderless floating `NSPanel`), `ConfirmationBadge`
   ("Saved" tick), `LoadingDots` (search-in-progress indicator), `Layout` (pure
   sizing/placement rules, unit-tested).
 - `Backend/` — `SidecarClient` (runs `butler-core`, JSON over stdio, watchdog,
