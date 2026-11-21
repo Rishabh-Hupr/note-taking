@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-06 (branch `notch-search`)
+
+### New features
+- **Search and add-note now grow out of the notch.** ⌘⌥F and ⌘⌥P spring a dark
+  panel down from the MacBook's notch, with a slight bounce, and Esc, saving or a
+  click away shrinks it back in. On a screen without a notch it comes from a
+  pretend one at the top centre. Always dark: black at the notch, see-through dark
+  glass below. The long-note preview matches. The windows no longer move when
+  dragged; they always sit at the notch.
+
 ## 2026-10-28
 
 ### New features

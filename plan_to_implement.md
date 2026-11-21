@@ -217,13 +217,24 @@ Make every action reachable by mouse without breaking that:
   recorder — either a custom key-capture field or the `KeyboardShortcuts` SPM package.
 - Validate against macOS-reserved combos (Spotlight, input sources, Finder search).
 
-### Notch integration (UI drops from the notch)
-- Position the overlay at **top-center, docked under the menu bar**, so it looks
-  like it emerges from the MacBook notch.
-- Use `NSScreen.safeAreaInsets` / `auxiliaryTopLeftArea` to detect the notch and
-  align to it; optionally shape/round the panel's top to hug the cutout, and add a
-  short "drop from the notch" reveal animation.
-- Gracefully fall back to the current upper-third centering on non-notched displays.
+### Notch integration: done (branch `notch-search`, 2026-11-06)
+- ✅ **Both overlays grow out of the notch** (`NotchPresenter` opens/closes either one the same
+  way). `NotchGeometry` finds the notch from `safeAreaInsets` and the
+  `auxiliaryTopLeft/RightArea` strips, or a pretend 200pt notch the menu bar's height at the top
+  centre of the mouse's screen. The panel's top sits on the screen's top edge (`.statusBar`
+  level; `constrainFrameRect` lets it over the menu bar), centred on the notch. Not draggable,
+  so the remembered-position code (and `restoredOrigin`/`defaultOrigin`) was removed.
+- ✅ **Spring** (`NotchContainerView`): the window stays full size and only a CAShapeLayer mask
+  animates, notch-sized to full, with CASpringAnimation (stiffness 320, damping 24: a slight
+  Dynamic Island bounce). A 16pt transparent margin leaves room for the overshoot, and both
+  shapes have the same path structure so they interpolate. Close is a 0.2s ease-in back into
+  the notch. Typing works at once; the hotkey while open doesn't replay it. Switching between
+  the two windows hides the other at once.
+- ✅ **Look**: always dark (darkAqua). Solid black through the notch strip, fading over 40pt to
+  60% black over a dark blur (`bodyOpacity`, picked by trying values live). The preview matches
+  and sits beside the visible shape, not the margin.
+- Later: the reminder pop-out from the notch (paused). Check on a real external monitor: the
+  pretend notch, and the blur following the shape there.
 
 ### Phase 7 — Packaging (make it a real app)
 - Build a signed `Butler.app`: `Info.plist` with `LSUIElement`, bundle `butler-core`

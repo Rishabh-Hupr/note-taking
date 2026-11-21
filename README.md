@@ -19,8 +19,11 @@ The 📒 menu-bar icon briefly shows `📒 last note 3h ago` every 2 hours as a 
 capture something. Change how often (or turn it off) from **📒 → Last-Note Reminder**;
 `BUTLER_HINT_INTERVAL=<seconds>` overrides it for testing.
 
-Both windows can be dragged anywhere and reopen where you left them. Search shows
-up to 200 notes at a time (most recent first); type to find older ones.
+Both windows grow out of the MacBook's notch with a quick spring (on a screen
+without a notch, from a pretend one at the top centre) and shrink back into it on
+close. They're always dark: solid black at the notch, a translucent dark blur
+below. Search shows up to 200 notes at a time (most recent first); type to find
+older ones.
 
 Notes are stored in `~/.butler/notes.db` (override with `BUTLER_DATA_DIR`). They're
 backed up automatically to `~/.butler/backups/`, and the database is tidied up at
@@ -35,7 +38,7 @@ Butler is two processes: a native Swift overlay and a Go data sidecar.
 │  macos-app/ (Swift/AppKit)│  over stdin/stdout (pipes)  │ go-rewrite/ (Go)      │
 │  • resident agent (hotkey)│ ───── put/fetch/list ─────▶ │ • SQLite + FTS5 store │
 │  • borderless NSPanel     │ ◀──── {ok, notes, …} ────── │ • ~/.butler/notes.db  │
-│  • NSVisualEffectView blur│                             │ • resident sidecar    │
+│  • notch panel + dark blur│                             │ • resident sidecar    │
 └──────────────────────────┘                             └───────────────────────┘
 ```
 

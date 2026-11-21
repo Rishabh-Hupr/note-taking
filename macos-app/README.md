@@ -21,7 +21,10 @@ Finder search — so F/P are used instead.)
   delete), `NotePreviewPanel` (side preview for long notes) and `NoteTimestamp`
   (the "Today / Yesterday / Monday / 12 Sep" + time shown on each row).
 - `AddNote/` — `PutViewController` (key + multi-line value, save).
-- `Overlay/` — `ShortcutHints` (the coloured footer hints, one table for both windows),
+- `Overlay/` — `NotchGeometry` (where the notch is, or a pretend one; where search
+  hangs from it), `NotchContainerView` (the notch-shaped dark background and its
+  spring), `NotchPresenter` (opens/closes either overlay from the notch),
+  `ShortcutHints` (the coloured footer hints, one table for both windows),
   `OverlayPanel` (borderless floating `NSPanel`), `ConfirmationBadge`
   ("Saved" tick), `LoadingDots` (search-in-progress indicator), `Layout` (pure
   sizing/placement rules, unit-tested).
@@ -58,7 +61,8 @@ cd macos-app && swift test
 Uses **Swift Testing** (XCTest isn't available with Command Line Tools alone).
 Tests cover the Go↔Swift JSON wire contract (`ModelsTests`) and the pure overlay
 layout rules in `Layout.swift` — text sizing, the 8-line inline / 50-line preview
-caps, preview placement, and remembered panel positions (`LayoutTests`). Long
+caps and preview placement (`LayoutTests`); where the notch is and how the panel
+hangs from it (`NotchGeometryTests`). Long
 notes are measured from their start only, and a test checks a 1.5MB note costs
 what a 6KB one does.
 
@@ -67,6 +71,7 @@ what a 6KB one does.
   (with confirmation).
 - ✅ Long-note side preview (`NotePreviewPanel`), deterministic sizing.
 - ✅ Put (add-note) overlay: Key + multi-line Value, ⌘Return saves, "Saved" tick.
-- ✅ Overlays remember their dragged position.
+- ✅ Both overlays grow out of the notch (`NotchPresenter`, `NotchGeometry`,
+  `NotchContainerView`): spring open/close, always dark, translucent below the notch strip.
 - ⏳ Packaging into a signed `.app` with `LSUIElement` (Info.plist under `Resources/`).
 - ⏳ User-visible "engine unavailable" state on repeated sidecar failure.

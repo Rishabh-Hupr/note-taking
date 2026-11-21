@@ -86,8 +86,8 @@ sequenceDiagram
     participant BE as butler-core
 
     You->>AD: ⌘⌥F
-    AD->>AD: position panel (remembered spot, else default on the mouse's screen)
-    AD->>SV: makeKeyAndOrderFront, prepareForShow()
+    AD->>AD: find the notch (or a pretend one) on the mouse's screen, hang the panel from it
+    AD->>SV: makeKeyAndOrderFront, spring open from the notch (mask only), prepareForShow()
     SV->>SV: clear list → window appears immediately (empty frame is cheap)
     alt cache loaded
         SV-->>SV: next run-loop turn: fill list from cache, select row 0
@@ -166,7 +166,7 @@ sequenceDiagram
     BE-->>SC: ok
     SC-->>PV: ok
     PV->>SV: onSaved → refreshRecent() (background fetch(""))
-    PV->>PV: clear draft, show "✓ Saved" 400ms, close
+    PV->>PV: clear draft, show "✓ Saved" 400ms, shrink back into the notch
 ```
 
 ## 6. Deleting a note (⌘D in search)
