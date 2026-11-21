@@ -22,7 +22,7 @@ final class SearchField: NSTextField {
 // the selection while the field keeps focus; Enter copies; ⌘D deletes; Esc
 // dismisses. The selected note pops out to show its full content.
 @MainActor
-final class SearchViewController: NSViewController {
+final class SearchViewController: NSViewController, NotchHosting {
     private let sidecar: SidecarClient
     var onDismiss: (() -> Void)?
 
@@ -58,16 +58,24 @@ final class SearchViewController: NSViewController {
 
     // MARK: - Layout
 
+    /// Size of the black panel's content below the notch strip (the old window size).
+    static let contentSize = NSSize(width: 640, height: 592)
+
+    /// The notch-shaped black background; AppDelegate runs its open/close spring.
+    private(set) lazy var notchView = NotchContainerView(frame: NSRect(origin: .zero, size: Self.contentSize))
+    private var searchTopConstraint: NSLayoutConstraint?
+
+    /// Keep the search field clear of the notch strip at the top (its height
+    /// differs between a real notch and a menu-bar-high pretend one).
+    func setNotchHeight(_ height: CGFloat) {
+        searchTopConstraint?.constant = height + 12
+        notchView.notchHeight = height
+    }
+
     override func loadView() {
-        let effect = NSVisualEffectView()
-        effect.material = .hudWindow
-        effect.blendingMode = .behindWindow
-        effect.state = .active
-        effect.wantsLayer = true
-        effect.layer?.cornerRadius = 12
-        effect.layer?.masksToBounds = true
-        self.view = effect
-        view.frame = NSRect(x: 0, y: 0, width: 640, height: 592) // ~4 more rows than 400
+        // Always dark: black at the notch, a translucent dark blur below.
+        self.view = notchView
+        let body = notchView.body
 
         searchField.translatesAutoresizingMaskIntoConstraints = false
         searchField.placeholderString = "Search notes…"
@@ -77,8 +85,8 @@ final class SearchViewController: NSViewController {
         searchField.focusRingType = .none
         searchField.delegate = self
         searchField.onCommandD = { [weak self] in self?.deleteSelected() }
-        view.addSubview(searchField)
-        view.addSubview(loadingDots)
+        body.addSubview(searchField)
+        body.addSubview(loadingDots)
 
         let scroll = NSScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
@@ -89,29 +97,31 @@ final class SearchViewController: NSViewController {
         tableView.dataSource = self
         tableView.delegate = self
         scroll.documentView = tableView
-        view.addSubview(scroll)
+        body.addSubview(scroll)
 
         // Persistent shortcut hint, mirroring the Put dialog's footer so the
         // available actions (notably ⌘D to delete) are always discoverable.
         hintLabel.attributedStringValue = ShortcutHints.text(ShortcutHints.search)
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(hintLabel)
+        body.addSubview(hintLabel)
 
+        let searchTop = searchField.topAnchor.constraint(equalTo: body.topAnchor, constant: 18)
+        searchTopConstraint = searchTop
         NSLayoutConstraint.activate([
-            searchField.topAnchor.constraint(equalTo: view.topAnchor, constant: 18),
-            searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            searchTop,
+            searchField.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 20),
             searchField.trailingAnchor.constraint(equalTo: loadingDots.leadingAnchor, constant: -8),
-            loadingDots.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            loadingDots.trailingAnchor.constraint(equalTo: body.trailingAnchor, constant: -20),
             loadingDots.centerYAnchor.constraint(equalTo: searchField.centerYAnchor),
             loadingDots.widthAnchor.constraint(equalToConstant: 34),
 
             scroll.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 14),
-            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
-            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+            scroll.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 12),
+            scroll.trailingAnchor.constraint(equalTo: body.trailingAnchor, constant: -12),
             scroll.bottomAnchor.constraint(equalTo: hintLabel.topAnchor, constant: -8),
 
-            hintLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            hintLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
+            hintLabel.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 20),
+            hintLabel.bottomAnchor.constraint(equalTo: body.bottomAnchor, constant: -12),
         ])
 
         // The overlay hides when it loses key (click-away, ⌘⌥P); take the preview
@@ -322,7 +332,9 @@ final class SearchViewController: NSViewController {
         var rowRect = tableView.rect(ofRow: row).intersection(tableView.visibleRect)
         if rowRect.isEmpty { rowRect = tableView.visibleRect }
         let onScreen = window.convertToScreen(tableView.convert(rowRect, to: nil))
-        preview.present(results[row], anchor: onScreen, in: window)
+        let body = notchView.body
+        let panelOnScreen = window.convertToScreen(body.convert(body.bounds, to: nil))
+        preview.present(results[row], anchor: onScreen, in: window, beside: panelOnScreen)
     }
 
     private func moveSelection(by delta: Int) {

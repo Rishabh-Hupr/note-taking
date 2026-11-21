@@ -46,13 +46,21 @@ final class NotePreviewPanel: NSPanel {
         isOpaque = false
         hasShadow = true
 
+        // Always dark: the same translucent black over a blur as the search window
+        // below its notch strip.
+        appearance = NSAppearance(named: .darkAqua)
         let effect = NSVisualEffectView()
         effect.material = .hudWindow
         effect.blendingMode = .behindWindow
         effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 12
+        effect.layer?.cornerRadius = 18
         effect.layer?.masksToBounds = true
+        let tint = NSView(frame: effect.bounds)
+        tint.wantsLayer = true
+        tint.layer?.backgroundColor = NSColor.black.withAlphaComponent(NotchContainerView.bodyOpacity).cgColor
+        tint.autoresizingMask = [.width, .height]
+        effect.addSubview(tint)
         contentView = effect
 
         keyLabel.font = keyFont
@@ -117,7 +125,9 @@ final class NotePreviewPanel: NSPanel {
     /// Show `note` beside `parent`, top-aligned with `anchor` (the selected row, in
     /// screen coordinates). Slides + fades in the first time; afterwards it just
     /// glides to the new position and swaps content.
-    func present(_ note: Note, anchor: NSRect, in parent: NSWindow) {
+    /// `beside` is the search panel's visible rect on screen, if it differs from
+    /// the parent window's frame (the notch window has a transparent margin).
+    func present(_ note: Note, anchor: NSRect, in parent: NSWindow, beside: NSRect? = nil) {
         let isNewNote = note.id != shownNoteID
         shownNoteID = note.id
         keyLabel.stringValue = note.key
@@ -127,7 +137,7 @@ final class NotePreviewPanel: NSPanel {
         // layout — so the same note on the same screen always gets the same size.
         let visible = (parent.screen ?? NSScreen.main)?.visibleFrame ?? parent.frame
         let (x, width, slideFrom) = OverlayLayout.previewHorizontal(
-            parent: parent.frame, visible: visible,
+            parent: beside ?? parent.frame, visible: visible,
             preferredWidth: Self.preferredWidth, minWidth: Self.minWidth)
         let wrapWidth = textWidth(forPanelWidth: width)
         // Measured from the note's start only: the panel shows at most
@@ -171,6 +181,7 @@ final class NotePreviewPanel: NSPanel {
         if !alreadyShown {
             setFrame(target.offsetBy(dx: slideFrom, dy: 0), display: false)
             alphaValue = 0
+            level = parent.level // stay above a parent that sits over the menu bar
             parent.addChildWindow(self, ordered: .above)
         }
         NSAnimationContext.runAnimationGroup { ctx in

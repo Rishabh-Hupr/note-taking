@@ -5,8 +5,8 @@ import Carbon.HIToolbox
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var fetchHotKey: GlobalHotKey?
     private var putHotKey: GlobalHotKey?
-    private var fetchPanel: OverlayPanel?
-    private var putPanel: OverlayPanel?
+    private var fetch: NotchPresenter?
+    private var put: NotchPresenter?
     private var searchVC: SearchViewController?
     private var putVC: PutViewController?
     private var sidecar: SidecarClient!
@@ -24,18 +24,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sidecar = SidecarClient(binaryURL: resolveSidecarBinary(), dataDir: nil)
         sidecar.startWithRetry() // retries with backoff if the binary isn't there yet
 
+        // Both overlays grow out of the notch (see NotchPresenter).
         // Fetch overlay (⌘⌥F)
         let sVC = SearchViewController(sidecar: sidecar)
-        sVC.onDismiss = { [weak self] in self?.fetchPanel?.orderOut(nil) }
-        fetchPanel = makePanel(vc: sVC, size: NSSize(width: 640, height: 592))
+        sVC.onDismiss = { [weak self] in self?.fetch?.close() }
+        fetch = NotchPresenter(host: sVC, contentSize: SearchViewController.contentSize)
         searchVC = sVC
 
         // Put overlay (⌘⌥P)
         let pVC = PutViewController(sidecar: sidecar)
-        pVC.onDismiss = { [weak self] in self?.putPanel?.orderOut(nil) }
+        pVC.onDismiss = { [weak self] in self?.put?.close() }
         pVC.onSaved = { [weak sVC] in sVC?.refreshRecent() }
         sVC.refreshRecent() // warm the cache so even the first ⌘⌥F fills from memory
-        putPanel = makePanel(vc: pVC, size: NSSize(width: 640, height: 178))
+        put = NotchPresenter(host: pVC, contentSize: PutViewController.contentSize)
         putVC = pVC
 
         fetchHotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_F), modifiers: UInt32(cmdKey | optionKey)) {
@@ -51,11 +52,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             self, selector: #selector(windowResignedKey(_:)),
             name: NSWindow.didResignKeyNotification, object: nil
-        )
-        // Remember where the user drags each overlay so it reopens there.
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(windowMoved(_:)),
-            name: NSWindow.didMoveNotification, object: nil
         )
     }
 
@@ -183,18 +179,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Panels
 
-    private func makePanel(vc: NSViewController, size: NSSize) -> OverlayPanel {
-        let panel = OverlayPanel(contentRect: NSRect(origin: .zero, size: size))
-        panel.contentViewController = vc
-        return panel
-    }
-
     private func summonFetch() {
-        guard let fetchPanel, let searchVC else { return }
+        guard let fetch, let searchVC else { return }
         let t0 = DispatchTime.now().uptimeNanoseconds
-        putPanel?.orderOut(nil) // only one overlay at a time
-        position(fetchPanel)
-        fetchPanel.makeKeyAndOrderFront(nil)
+        put?.hideNow() // only one overlay at a time
+        fetch.open()
         let t1 = DispatchTime.now().uptimeNanoseconds
         searchVC.prepareForShow()
         let t2 = DispatchTime.now().uptimeNanoseconds
@@ -209,60 +198,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func summonPut() {
-        guard let putPanel, let putVC else { return }
-        fetchPanel?.orderOut(nil)
-        position(putPanel)
-        putPanel.makeKeyAndOrderFront(nil)
+        guard let put, let putVC else { return }
+        fetch?.hideNow()
+        put.open()
         putVC.prepareForShow()
     }
 
+    // Click-away: shrink back into the notch.
     @objc private func windowResignedKey(_ note: Notification) {
         guard let window = note.object as? NSWindow else { return }
-        if window === fetchPanel || window === putPanel { window.orderOut(nil) }
-    }
-
-    // MARK: - Remembered positions
-
-    // True while we move a panel ourselves, so only user drags get saved.
-    private var isPositioningPanel = false
-
-    private func originDefaultsKey(for window: NSWindow) -> String? {
-        if window === fetchPanel { return "butler.fetchPanelOrigin" }
-        if window === putPanel { return "butler.putPanelOrigin" }
-        return nil
-    }
-
-    @objc private func windowMoved(_ note: Notification) {
-        guard !isPositioningPanel,
-              let window = note.object as? NSWindow,
-              let key = originDefaultsKey(for: window) else { return }
-        UserDefaults.standard.set(NSStringFromPoint(window.frame.origin), forKey: key)
-    }
-
-    // The saved origin, clamped onto the screen it's on — or nil if there's none or
-    // that screen is gone (e.g. an unplugged display), so we fall back to default.
-    private func savedOrigin(for panel: NSPanel) -> NSPoint? {
-        guard let key = originDefaultsKey(for: panel),
-              let stored = UserDefaults.standard.string(forKey: key) else { return nil }
-        return OverlayLayout.restoredOrigin(
-            NSPointFromString(stored), size: panel.frame.size,
-            screens: NSScreen.screens.map(\.visibleFrame))
-    }
-
-    // Reopen where the user last dragged it; otherwise center horizontally, upper
-    // third vertically, on whichever screen has the mouse. Uses visibleFrame and
-    // clamps so the panel never clips off-screen or under the menu bar.
-    private func position(_ panel: NSPanel) {
-        isPositioningPanel = true
-        defer { isPositioningPanel = false }
-        if let origin = savedOrigin(for: panel) {
-            panel.setFrameOrigin(origin)
-            return
-        }
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
-        guard let vf = screen?.visibleFrame else { return }
-        panel.setFrameOrigin(OverlayLayout.defaultOrigin(size: panel.frame.size, visible: vf))
+        if window === fetch?.panel { fetch?.close() }
+        if window === put?.panel { put?.close() }
     }
 
     // MARK: - Sidecar binary resolution

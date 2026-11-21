@@ -1,7 +1,9 @@
 import AppKit
 
-// OverlayPanel is the Spotlight-style floating window: borderless-looking,
-// non-activating (so summoning it doesn't steal the active app), on all Spaces.
+// OverlayPanel is the floating overlay window (search, add note): borderless-
+// looking, non-activating (so summoning it doesn't steal the active app), on all
+// Spaces, always dark, hanging from the notch over the menu bar (NotchPresenter
+// places it), so it isn't draggable.
 final class OverlayPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(
@@ -15,10 +17,11 @@ final class OverlayPanel: NSPanel {
 
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
-        isMovableByWindowBackground = true
+        isMovableByWindowBackground = false
+        appearance = NSAppearance(named: .darkAqua)
 
         isFloatingPanel = true
-        level = .floating
+        level = .statusBar // above the menu bar, which the notch strip covers
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
 
         hidesOnDeactivate = false
@@ -30,6 +33,12 @@ final class OverlayPanel: NSPanel {
         standardWindowButton(.closeButton)?.isHidden = true
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true
+    }
+
+    // The panel's top is the screen's top edge (over the menu bar); AppKit
+    // would otherwise push a titled window down below the menu bar.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
     }
 
     // Borderless/non-activating panels refuse key status by default, which would

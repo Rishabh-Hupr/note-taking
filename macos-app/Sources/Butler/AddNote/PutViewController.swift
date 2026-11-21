@@ -54,7 +54,7 @@ final class ValueTextView: NSTextView {
 // (⌘Return inserts a newline); Esc cancels. Drafts persist across dismissals and
 // are cleared only after a successful save.
 @MainActor
-final class PutViewController: NSViewController {
+final class PutViewController: NSViewController, NotchHosting {
     private let sidecar: SidecarClient
     var onDismiss: (() -> Void)?
     var onSaved: (() -> Void)? // e.g. refresh search's cached recent notes
@@ -75,16 +75,23 @@ final class PutViewController: NSViewController {
     }
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    /// Size of the panel's content below the notch strip.
+    static let contentSize = NSSize(width: 640, height: 178)
+
+    /// The notch-shaped dark background; NotchPresenter runs its open/close spring.
+    private(set) lazy var notchView = NotchContainerView(frame: NSRect(origin: .zero, size: Self.contentSize))
+    private var keyTopConstraint: NSLayoutConstraint?
+
+    /// Keep the key field clear of the notch strip at the top.
+    func setNotchHeight(_ height: CGFloat) {
+        keyTopConstraint?.constant = height + 14
+        notchView.notchHeight = height
+    }
+
     override func loadView() {
-        let effect = NSVisualEffectView()
-        effect.material = .hudWindow
-        effect.blendingMode = .behindWindow
-        effect.state = .active
-        effect.wantsLayer = true
-        effect.layer?.cornerRadius = 12
-        effect.layer?.masksToBounds = true
-        self.view = effect
-        view.frame = NSRect(x: 0, y: 0, width: 640, height: 178)
+        // Always dark: black at the notch, a translucent dark blur below.
+        self.view = notchView
+        let body = notchView.body
 
         // Key (single line)
         keyField.translatesAutoresizingMaskIntoConstraints = false
@@ -127,24 +134,26 @@ final class PutViewController: NSViewController {
         showShortcuts()
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        [keyField, scroll, statusLabel].forEach { view.addSubview($0) }
-        view.addSubview(savedBadge) // last, so it sits on top of the fields
+        [keyField, scroll, statusLabel].forEach { body.addSubview($0) }
+        body.addSubview(savedBadge) // last, so it sits on top of the fields
+        let keyTop = keyField.topAnchor.constraint(equalTo: body.topAnchor, constant: 22)
+        keyTopConstraint = keyTop
         NSLayoutConstraint.activate([
-            keyField.topAnchor.constraint(equalTo: view.topAnchor, constant: 22),
-            keyField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            keyField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            keyTop,
+            keyField.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 20),
+            keyField.trailingAnchor.constraint(equalTo: body.trailingAnchor, constant: -20),
 
             scroll.topAnchor.constraint(equalTo: keyField.bottomAnchor, constant: 14),
-            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            scroll.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 20),
+            scroll.trailingAnchor.constraint(equalTo: body.trailingAnchor, constant: -20),
             scroll.heightAnchor.constraint(equalToConstant: 78), // ~3 lines, then scrolls
 
-            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statusLabel.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 20),
             statusLabel.topAnchor.constraint(greaterThanOrEqualTo: scroll.bottomAnchor, constant: 10),
-            statusLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -14),
+            statusLabel.bottomAnchor.constraint(equalTo: body.bottomAnchor, constant: -14),
 
-            savedBadge.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            savedBadge.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            savedBadge.centerXAnchor.constraint(equalTo: body.centerXAnchor),
+            savedBadge.centerYAnchor.constraint(equalTo: body.centerYAnchor),
         ])
     }
 

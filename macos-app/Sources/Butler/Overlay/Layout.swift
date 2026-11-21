@@ -13,10 +13,12 @@ enum OverlayLayout {
 
     /// Height of `text` wrapped at `width` in `font`.
     ///
-    /// Laid out with TextKit rather than `NSString.boundingRect`: the heights are
-    /// identical (except "", 14pt here versus 15; empty notes can't be saved),
-    /// but boundingRect slows down sharply on long notes: 145ms for a 6KB,
-    /// 116-line note versus 2.6ms here, and a selection measured its note 3 times.
+    /// Laid out with TextKit; heights match `NSString.boundingRect` (except "",
+    /// 14pt here versus 15; empty notes can't be saved). On macOS ≤ 15 boundingRect
+    /// slowed sharply on long notes (145ms for a 6KB, 116-line note versus 2.6ms
+    /// here); macOS 26 made it fast too. Either way the lag is gone because the
+    /// callers measure only a bounded excerpt (see `leadingTextHeight`), so cost
+    /// no longer grows with note length whatever the OS does.
     static func textHeight(_ text: String, width: CGFloat, font: NSFont) -> CGFloat {
         let storage = NSTextStorage(string: text, attributes: [.font: font])
         let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
@@ -138,26 +140,5 @@ enum OverlayLayout {
     /// Vertical placement: top-aligned with `anchor` (the selected row), clamped.
     static func previewY(anchor: NSRect, height: CGFloat, visible: NSRect, margin: CGFloat = screenMargin) -> CGFloat {
         min(max(anchor.maxY - height, visible.minY + margin), visible.maxY - height - margin)
-    }
-
-    /// A remembered panel origin, clamped onto the screen it overlaps — or nil if
-    /// it overlaps no current screen (e.g. that display was unplugged).
-    static func restoredOrigin(_ saved: NSPoint, size: NSSize, screens: [NSRect]) -> NSPoint? {
-        let rect = NSRect(origin: saved, size: size)
-        guard let vf = screens.first(where: { $0.intersects(rect) }) else { return nil }
-        return NSPoint(
-            x: min(max(saved.x, vf.minX), vf.maxX - size.width),
-            y: min(max(saved.y, vf.minY), vf.maxY - size.height)
-        )
-    }
-
-    /// Default placement: centered horizontally, a bit above center, clamped.
-    static func defaultOrigin(size: NSSize, visible vf: NSRect, margin: CGFloat = screenMargin) -> NSPoint {
-        let x = vf.midX - size.width / 2
-        let y = vf.midY + vf.height * 0.12
-        return NSPoint(
-            x: min(max(x, vf.minX + margin), vf.maxX - size.width - margin),
-            y: min(max(y, vf.minY + margin), vf.maxY - size.height - margin)
-        )
     }
 }

@@ -66,26 +66,21 @@ import Testing
         #expect(OverlayLayout.textHeight("", width: 300, font: font) == bounding - 1)
     }
 
-    // Each selection measures its note several times on the main thread, so this
-    // must stay cheap. Timed against boundingRect (what it replaced, ~50× slower
-    // on this text) in the same run, best of 5 each, so other tests running in
-    // parallel slow both alike instead of failing a fixed time limit.
+    // Each selection measures its note several times on the main thread, so a
+    // single measurement of a 6KB note must stay cheap (a few ms; the bound is
+    // loose so a busy CI box can't make it flaky). The real defence against the
+    // old whole-note lag is leadingTextHeightStaysFastOnAHugeNote below — the app
+    // only ever measures a bounded excerpt. (We used to assert TextKit was 5×
+    // faster than NSString.boundingRect, but macOS 26+ made boundingRect fast
+    // too, so that relative premise no longer holds.)
     @Test func textHeightIsFastForLongNotes() {
         let text = longStructuredNote
-        func bestMs(_ measure: () -> Void) -> Double {
-            (0..<5).map { _ in
-                let start = DispatchTime.now().uptimeNanoseconds
-                measure()
-                return Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
-            }.min()!
-        }
-        let textKit = bestMs { _ = OverlayLayout.textHeight(text, width: 374, font: font) }
-        let boundingRect = bestMs {
-            _ = (text as NSString).boundingRect(
-                with: NSSize(width: 374, height: CGFloat.greatestFiniteMagnitude),
-                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font])
-        }
-        #expect(textKit * 5 < boundingRect, "TextKit \(textKit)ms vs boundingRect \(boundingRect)ms")
+        let best = (0..<5).map { _ in
+            let start = DispatchTime.now().uptimeNanoseconds
+            _ = OverlayLayout.textHeight(text, width: 374, font: font)
+            return Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
+        }.min()!
+        #expect(best < 50, "textHeight took \(best)ms")
     }
 
     // MARK: Measuring only the start of a note
@@ -291,39 +286,5 @@ import Testing
         // Anchor near the bottom: a top-aligned preview would fall off-screen.
         let anchor = NSRect(x: 0, y: 20, width: 600, height: 48)
         #expect(OverlayLayout.previewY(anchor: anchor, height: 300, visible: screen) == 8)
-    }
-
-    // MARK: Remembered position
-
-    let size = NSSize(width: 640, height: 400)
-
-    @Test func restoresSavedOriginOnScreen() {
-        let saved = NSPoint(x: 100, y: 200)
-        #expect(OverlayLayout.restoredOrigin(saved, size: size, screens: [screen]) == saved)
-    }
-
-    @Test func clampsSavedOriginThatHangsOffScreen() {
-        let saved = NSPoint(x: 1200, y: 700) // partly off the right/top edges
-        let origin = OverlayLayout.restoredOrigin(saved, size: size, screens: [screen])
-        #expect(origin == NSPoint(x: 1440 - 640, y: 900 - 400))
-    }
-
-    @Test func ignoresSavedOriginOnMissingDisplay() {
-        // Saved on a second display to the right that's no longer connected.
-        let saved = NSPoint(x: 2000, y: 200)
-        #expect(OverlayLayout.restoredOrigin(saved, size: size, screens: [screen]) == nil)
-    }
-
-    @Test func restoresOntoTheDisplayItWasOn() {
-        let second = NSRect(x: 1440, y: 0, width: 1920, height: 1080)
-        let saved = NSPoint(x: 2000, y: 300)
-        #expect(OverlayLayout.restoredOrigin(saved, size: size, screens: [screen, second]) == saved)
-    }
-
-    @Test func defaultOriginIsCenteredHorizontally() {
-        let origin = OverlayLayout.defaultOrigin(size: size, visible: screen)
-        #expect(origin.x == CGFloat(1440 - 640) / 2)
-        #expect(origin.y > screen.midY - size.height) // sits a bit above center
-        #expect(screen.contains(NSRect(origin: origin, size: size)))
     }
 }
